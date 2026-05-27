@@ -23,7 +23,7 @@ OpenClaw에 webhook 신호
 
 ## 🏗️ 시스템 구조
 
-'''
+```
 pattern-bridge/
 ├── src/
 │   ├── collector/               # 데이터 수집
@@ -43,7 +43,7 @@ pattern-bridge/
 │   └── ui/                      # Electron 대시보드
 ├── config/config.ts
 └── ecosystem.config.cjs         # PM2 설정
-'''
+```
 
 ---
 
