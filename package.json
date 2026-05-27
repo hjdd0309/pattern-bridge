@@ -1,0 +1,44 @@
+{
+  "name": "pattern-bridge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "dev": "tsx src/index.ts",
+    "check": "tsx src/check-patterns.ts",
+    "analyze": "tsx src/analyzer/check-patterns.ts",
+    "ui": "electron src/ui/main.cjs",
+    "collector:start": "pm2 start ecosystem.config.cjs",
+    "collector:stop": "pm2 stop pattern-bridge",
+    "collector:restart": "pm2 restart pattern-bridge",
+    "collector:status": "pm2 status pattern-bridge",
+    "collector:logs": "pm2 logs pattern-bridge",
+    "collector:save": "pm2 save",
+    "shortcut": "powershell -ExecutionPolicy Bypass -File scripts\\create-shortcut.ps1",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "active-win": "^8.2.1",
+    "axios": "^1.16.1",
+    "better-sqlite3": "^12.10.0",
+    "chokidar": "^5.0.0",
+    "node-cron": "^4.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.9.1",
+    "@types/node-cron": "^3.0.11",
+    "electron": "^36.9.5",
+    "tsx": "^4.22.3"
+  }
+}

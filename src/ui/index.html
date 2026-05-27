@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self'; script-src 'self'">
+  <title>Pattern Bridge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── Status strip ──────────────────────────────────────────────────────── -->
+<div class="titlebar">
+  <span class="app-title">Pattern Bridge</span>
+  <div class="status-dot" id="statusDot"></div>
+  <span class="status-text" id="statusText">대기 중</span>
+</div>
+
+<!-- ── Tab bar ───────────────────────────────────────────────────────────── -->
+<div class="tabs">
+  <button class="tab active" data-tab="dashboard">대시보드</button>
+  <button class="tab" data-tab="analysis">패턴 분석</button>
+  <button class="tab" data-tab="settings">설정</button>
+</div>
+
+<!-- ── Content ───────────────────────────────────────────────────────────── -->
+<div class="content">
+
+  <!-- ── Tab 1: Dashboard ──────────────────────────────────────────────── -->
+  <div class="panel active" id="dashboard">
+
+    <div class="section">
+      <div class="section-header">
+        <h3>수집 상태</h3>
+        <div class="toggle-area">
+          <span id="collectionLabel">중지됨</span>
+          <label class="switch">
+            <input type="checkbox" id="collectionToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>오늘 앱 사용시간 TOP 5</h3>
+      <div id="appChart"><span class="hint">데이터 로딩 중...</span></div>
+    </div>
+
+    <div class="section log-section">
+      <div class="section-header">
+        <h3>최근 이벤트 로그</h3>
+        <button class="btn-sm" id="clearLog">지우기</button>
+      </div>
+      <div class="log-container" id="logContainer"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Tab 2: Pattern Analysis ───────────────────────────────────────── -->
+  <div class="panel" id="analysis">
+
+    <div class="section">
+      <div class="section-header">
+        <h3>앙상블 패턴 분석</h3>
+        <button class="btn" id="runAnalyze">▶ 분석 실행</button>
+      </div>
+      <p class="section-hint">베이지안 40% · PrefixSpan 35% · FFT 25% — 신뢰도 ≥ 75% 패턴만 저장</p>
+    </div>
+
+    <div class="algo-cards">
+      <div class="card">
+        <div class="card-title">베이지안</div>
+        <div class="card-weight">40%</div>
+        <div class="card-desc">시간대별 앱 사용 확률<br>지수적 최신성 감쇠 (반감기 7일)</div>
+      </div>
+      <div class="card">
+        <div class="card-title">PrefixSpan</div>
+        <div class="card-weight">35%</div>
+        <div class="card-desc">세션 기반 순서 패턴 마이닝<br>5분 공백 기준 세션 분리</div>
+      </div>
+      <div class="card">
+        <div class="card-title">FFT</div>
+        <div class="card-weight">25%</div>
+        <div class="card-desc">주파수 분석 주기 감지<br>일간(24h) / 주간(168h) 패턴</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>분석 출력</h3>
+      <div class="analyze-output" id="analyzeOutput">
+        <span class="hint">분석 실행 버튼을 눌러 패턴을 분석하세요.</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>감지된 패턴 (최근 7일)</h3>
+      <div id="patternList"><span class="hint">패턴 로딩 중...</span></div>
+    </div>
+
+  </div>
+
+  <!-- ── Tab 3: Settings ───────────────────────────────────────────────── -->
+  <div class="panel" id="settings">
+
+    <div class="section">
+      <h3>OpenClaw 연동</h3>
+      <label class="field-label">Webhook URL</label>
+      <input type="text" id="webhookUrl" class="input-field"
+             placeholder="https://hooks.openclaw.io/...">
+    </div>
+
+    <div class="section">
+      <h3>분석 주기</h3>
+      <label class="field-label">자동 분석 실행 간격</label>
+      <select id="analyzeInterval" class="input-field">
+        <option value="1">1분</option>
+        <option value="5">5분</option>
+        <option value="15">15분</option>
+        <option value="30">30분</option>
+        <option value="60">1시간</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <h3>수집 설정</h3>
+      <label class="checkbox-label">
+        <input type="checkbox" id="autoStart">
+        앱 시작 시 자동으로 수집 시작
+      </label>
+    </div>
+
+    <div class="settings-actions">
+      <button class="btn" id="saveSettings">저장</button>
+      <span class="save-status" id="saveStatus"></span>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

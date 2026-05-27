@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Pattern Bridge",
+  "version": "1.0.0",
+  "description": "방문한 URL과 페이지 제목을 로컬 Pattern Bridge 서버로 전송합니다",
+
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["http://127.0.0.1:7701/*"],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Pattern Bridge"
+  }
+}

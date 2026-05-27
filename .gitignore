@@ -1,0 +1,30 @@
+﻿# Dependencies
+node_modules/
+
+# Database
+data/
+*.sqlite
+*.db
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+
+# PM2
+.pm2/
+
+# Build
+dist/
+
+# OpenClaw sensitive configs
+# (openclaw.json과 models.json은 WSL 경로라 별도 관리)
+
+# OS
+.DS_Store
+Thumbs.db
+
+.claude/

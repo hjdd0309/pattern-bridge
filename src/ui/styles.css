@@ -1,0 +1,458 @@
+/* ── Reset & Base ──────────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #f3f3f3;
+  color: #1a1a1a;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Status strip (below native title bar) ─────────────────────────────── */
+.titlebar {
+  background: #ffffff;
+  padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.app-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+  -webkit-app-region: no-drag;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c0c0c0;
+  transition: background 0.25s;
+  flex-shrink: 0;
+}
+.status-dot.active { background: #107c10; }
+
+.status-text {
+  font-size: 12px;
+  color: #888;
+  transition: color 0.25s;
+}
+
+/* ── Tab bar ────────────────────────────────────────────────────────────── */
+.tabs {
+  background: #ffffff;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+}
+
+.tab {
+  padding: 11px 14px 9px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #605e5c;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.tab:hover {
+  color: #1a1a1a;
+  background: #f3f3f3;
+}
+.tab.active {
+  color: #0078d4;
+  border-bottom-color: #0078d4;
+  font-weight: 600;
+}
+
+/* ── Content / panels ───────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel {
+  display: none;
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  gap: 10px;
+  flex-direction: column;
+}
+.panel.active { display: flex; }
+
+/* ── Cards (section containers) ────────────────────────────────────────── */
+.section {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.section h3 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #605e5c;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 12px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-header h3 { margin-bottom: 0; }
+
+/* ── Collection toggle ──────────────────────────────────────────────────── */
+.toggle-area { display: flex; align-items: center; gap: 10px; }
+
+#collectionLabel {
+  font-size: 13px;
+  color: #605e5c;
+  transition: color 0.2s;
+}
+
+/* Windows 11–style pill toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #c8c6c4;
+  border-radius: 22px;
+  transition: background 0.2s;
+}
+.slider::before {
+  position: absolute;
+  content: '';
+  height: 14px;
+  width: 14px;
+  left: 4px;
+  bottom: 4px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+input:checked + .slider { background: #0078d4; }
+input:checked + .slider::before { transform: translateX(22px); }
+
+/* ── App usage chart ────────────────────────────────────────────────────── */
+.chart-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.chart-row:last-child { margin-bottom: 0; }
+
+.chart-label {
+  width: 148px;
+  font-size: 12px;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.chart-bar-wrap {
+  flex: 1;
+  background: #ebebeb;
+  border-radius: 3px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.chart-bar {
+  height: 100%;
+  background: #0078d4;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 3px;
+}
+
+.chart-value {
+  width: 72px;
+  font-size: 12px;
+  color: #605e5c;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── Event log ──────────────────────────────────────────────────────────── */
+.log-container {
+  background: #fafafa;
+  border: 1px solid #ebebeb;
+  border-radius: 4px;
+  padding: 8px 10px;
+  height: 150px;
+  overflow-y: auto;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11px;
+}
+
+.log-line {
+  padding: 1px 0;
+  color: #323130;
+  word-break: break-all;
+  line-height: 1.55;
+}
+
+.log-time {
+  color: #a19f9d;
+  margin-right: 6px;
+  user-select: none;
+}
+
+/* ── Algorithm cards ────────────────────────────────────────────────────── */
+.algo-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 3px;
+}
+
+.card-weight {
+  font-size: 11px;
+  color: #0078d4;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.card-desc {
+  font-size: 11px;
+  color: #605e5c;
+  line-height: 1.55;
+}
+
+/* ── Analysis output ─────────────────────────────────────────────────────── */
+.analyze-output {
+  background: #fafafa;
+  border: 1px solid #ebebeb;
+  border-radius: 4px;
+  padding: 10px 12px;
+  min-height: 56px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.analysis-pre {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11px;
+  color: #323130;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+/* ── Pattern list ────────────────────────────────────────────────────────── */
+.pattern-item {
+  background: #fafafa;
+  border: 1px solid #ebebeb;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  transition: background 0.1s;
+}
+.pattern-item:last-child { margin-bottom: 0; }
+.pattern-item:hover { background: #f5f5f5; }
+
+.pattern-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.pattern-type-badge {
+  background: #e8f1fb;
+  color: #0078d4;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.pattern-score {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11px;
+  color: #605e5c;
+}
+
+.notified-mark {
+  color: #107c10;
+  font-size: 12px;
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.pattern-detail {
+  font-size: 12px;
+  color: #1a1a1a;
+  margin-bottom: 3px;
+}
+
+.pattern-time {
+  font-size: 11px;
+  color: #a19f9d;
+}
+
+/* ── Settings ────────────────────────────────────────────────────────────── */
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: #605e5c;
+  margin-bottom: 5px;
+}
+
+.input-field {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #c8c6c4;
+  border-radius: 4px;
+  padding: 7px 10px;
+  color: #1a1a1a;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+}
+.input-field:hover { border-color: #a19f9d; }
+.input-field:focus { border-color: #0078d4; outline: 1px solid #0078d4; }
+
+select.input-field { cursor: pointer; }
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: #1a1a1a;
+  font-size: 13px;
+  user-select: none;
+}
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #0078d4;
+  cursor: pointer;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  background: #0078d4;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-weight: 400;
+}
+.btn:hover:not(:disabled) { background: #106ebe; }
+.btn:active:not(:disabled) { background: #005a9e; }
+.btn:disabled {
+  background: #f3f3f3;
+  color: #a19f9d;
+  border: 1px solid #e0e0e0;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  background: transparent;
+  color: #605e5c;
+  border: 1px solid #d1d1d1;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-sm:hover { background: #f3f3f3; border-color: #a19f9d; }
+
+.save-status {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #107c10;
+  font-weight: 600;
+}
+
+/* ── Log section grows to fill remaining space ─────────────────────────── */
+.log-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.log-section .log-container {
+  flex: 1;
+  height: auto;
+  max-height: none;
+}
+
+/* ── Settings save row ───────────────────────────────────────────────────── */
+.settings-actions {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+/* ── Misc ────────────────────────────────────────────────────────────────── */
+.hint { color: #a19f9d; font-size: 12px; }
+.error-text { color: #d13438; font-size: 12px; }
+.section-hint { font-size: 11px; color: #a19f9d; margin-top: -8px; margin-bottom: 2px; }
+
+/* ── Scrollbar (Win11–style thin) ────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c8c6c4; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #a19f9d; }
