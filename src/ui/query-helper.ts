@@ -1,5 +1,6 @@
 import { getDb } from "../db/schema.js";
 import { calcAppTime } from "../collector/app-time.js";
+import { getRecentNotifications, setNotificationFeedback } from "../analyzer/notification-log.js";
 
 const queryType = process.argv[2];
 
@@ -36,9 +37,25 @@ function patterns() {
   }[];
 }
 
+function recentNotifications() {
+  return getRecentNotifications(30);
+}
+
+function setFeedback() {
+  const id = Number(process.argv[3]);
+  const feedback = process.argv[4];
+  if (feedback !== 'correct' && feedback !== 'incorrect') {
+    throw new Error(`invalid feedback value: ${feedback}`);
+  }
+  setNotificationFeedback(id, feedback);
+  return { ok: true };
+}
+
 switch (queryType) {
-  case 'app-stats':      console.log(JSON.stringify(appStats()));      break;
-  case 'recent-events':  console.log(JSON.stringify(recentEvents()));  break;
-  case 'patterns':       console.log(JSON.stringify(patterns()));      break;
-  default:               console.log('[]');
+  case 'app-stats':             console.log(JSON.stringify(appStats()));             break;
+  case 'recent-events':         console.log(JSON.stringify(recentEvents()));         break;
+  case 'patterns':               console.log(JSON.stringify(patterns()));             break;
+  case 'recent-notifications':  console.log(JSON.stringify(recentNotifications()));  break;
+  case 'set-feedback':          console.log(JSON.stringify(setFeedback()));          break;
+  default:                      console.log('[]');
 }

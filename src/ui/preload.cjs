@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('api', {
   getRecentEvents:      () => ipcRenderer.invoke('get-recent-events'),
   getPatterns:          () => ipcRenderer.invoke('get-patterns'),
   runAnalyze:           () => ipcRenderer.invoke('run-analyze'),
+  getRecentNotifications: () => ipcRenderer.invoke('get-recent-notifications'),
+  submitFeedback: (id, feedback) => ipcRenderer.invoke('submit-feedback', id, feedback),
   getCollectionStatus:  () => ipcRenderer.invoke('get-collection-status'),
   toggleCollection: enable => ipcRenderer.invoke('toggle-collection', enable),
   getSettings:          () => ipcRenderer.invoke('get-settings'),

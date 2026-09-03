@@ -162,6 +162,9 @@ ipcMain.handle('get-app-stats',     () => runQuery('app-stats'));
 ipcMain.handle('get-recent-events', () => runQuery('recent-events'));
 ipcMain.handle('get-patterns',      () => runQuery('patterns'));
 
+ipcMain.handle('get-recent-notifications', () => runQuery('recent-notifications'));
+ipcMain.handle('submit-feedback', (_, id, feedback) => runQuery('set-feedback', id, feedback));
+
 ipcMain.handle('run-analyze', () => new Promise(resolve => {
   const proc = spawn('npx', ['tsx', 'src/analyzer/check-patterns.ts'], {
     cwd: PROJECT_ROOT, shell: true,

@@ -6,6 +6,7 @@ import {
   markPatternNotified,
 } from "../analyzer/pattern-engine.js";
 import { checkMissedPatterns } from "../analyzer/missed-detector.js";
+import { logNotification } from "../analyzer/notification-log.js";
 import { sendWebhook } from "../trigger/openclaw-client.js";
 
 async function runPipeline(): Promise<void> {
@@ -38,6 +39,17 @@ async function runMissedDetector(): Promise<void> {
     const missed = checkMissedPatterns();
     console.log(`[${ts}] missed patterns: ${missed.length}`);
     for (const event of missed) {
+      // Log every missed-pattern detection for evaluation, independent of
+      // whether the webhook delivery below succeeds.
+      const triggeredAt = Date.now();
+      logNotification({
+        patternId:          event.patternId,
+        triggeredAt,
+        predictedTime:      triggeredAt - event.missedSince * 60_000,
+        actualDelayMinutes: event.missedSince,
+        confidenceScore:    event.confidence,
+      });
+
       try {
         await sendWebhook({
           userId: "local",

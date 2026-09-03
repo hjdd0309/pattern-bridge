@@ -22,7 +22,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById(target).classList.add('active');
     if (target === 'dashboard') refreshDashboard();
-    if (target === 'analysis')  refreshPatterns();
+    if (target === 'analysis')  { refreshPatterns(); refreshNotifications(); }
     if (target === 'settings')  loadSettings();
   });
 });
@@ -229,6 +229,84 @@ function extractDetail(p) {
   } catch {
     return '';
   }
+}
+
+// ── Notification feedback (evaluation logging) ──────────────────────────────
+
+async function refreshNotifications() {
+  try {
+    const notifications = await window.api.getRecentNotifications();
+    renderNotificationList(notifications);
+  } catch (e) {
+    console.error('refreshNotifications:', e);
+  }
+}
+
+function renderNotificationList(notifications) {
+  const list = document.getElementById('notificationList');
+  const summary = document.getElementById('evalSummary');
+
+  if (!notifications || !notifications.length) {
+    list.innerHTML = '<span class="hint">기록된 알림이 없습니다. (놓침 감지가 발생하면 여기에 쌓입니다)</span>';
+    summary.textContent = '';
+    return;
+  }
+
+  const withFeedback = notifications.filter(n => n.userFeedback);
+  const correct = withFeedback.filter(n => n.userFeedback === 'correct').length;
+  summary.textContent = withFeedback.length
+    ? `Precision ${Math.round(correct / withFeedback.length * 100)}%  (${withFeedback.length}/${notifications.length}건 응답)`
+    : `아직 피드백 없음 (0/${notifications.length}건 응답)`;
+
+  list.innerHTML = notifications.map(n => {
+    const time = new Date(n.triggeredAt).toLocaleString('ko-KR', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+    const confidence = Math.round(n.confidenceScore * 100);
+    let scores = {};
+    try { scores = JSON.parse(n.algorithmScores); } catch {}
+    const scoreDetail = `베이:${pct100(scores.bayesian)} 시퀀:${pct100(scores.prefixspan)} FFT:${pct100(scores.fft)}`;
+    const detail = extractDetail({ pattern_type: n.patternType, payload: n.payload });
+
+    const thumbsUp   = n.userFeedback === 'correct'   ? 'active-up'   : '';
+    const thumbsDown = n.userFeedback === 'incorrect' ? 'active-down' : '';
+
+    return `
+      <div class="notification-item" data-id="${n.id}">
+        <div class="pattern-header">
+          <span class="pattern-score">신뢰도 ${confidence}%</span>
+          <span class="pattern-time">${esc(scoreDetail)}</span>
+        </div>
+        ${detail ? `<div class="pattern-detail">${esc(detail)}  (${n.actualDelayMinutes}분 경과)</div>` : ''}
+        <div class="notification-footer">
+          <span class="pattern-time">감지: ${esc(time)}</span>
+          <div class="feedback-buttons">
+            <button class="feedback-btn ${thumbsUp}"   data-feedback="correct">👍</button>
+            <button class="feedback-btn ${thumbsDown}" data-feedback="incorrect">👎</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('.feedback-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const item = btn.closest('.notification-item');
+      const id = Number(item.dataset.id);
+      const feedback = btn.dataset.feedback;
+      item.querySelectorAll('.feedback-btn').forEach(b => b.disabled = true);
+      try {
+        await window.api.submitFeedback(id, feedback);
+        await refreshNotifications();
+      } catch (e) {
+        console.error('submitFeedback:', e);
+        item.querySelectorAll('.feedback-btn').forEach(b => b.disabled = false);
+      }
+    });
+  });
+}
+
+function pct100(v) {
+  return `${Math.round((Number(v) || 0) * 100)}%`;
 }
 
 // ── Settings ───────────────────────────────────────────────────────────────

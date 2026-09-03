@@ -9,6 +9,8 @@
     "dev": "tsx src/index.ts",
     "check": "tsx src/check-patterns.ts",
     "analyze": "tsx src/analyzer/check-patterns.ts",
+    "eval-report": "tsx scripts/eval-report.ts",
+    "ablation": "tsx scripts/run-ablation.ts",
     "ui": "electron src/ui/main.cjs",
     "collector:start": "pm2 start ecosystem.config.cjs",
     "collector:stop": "pm2 stop pattern-bridge",

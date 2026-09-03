@@ -34,16 +34,41 @@ const SERIES_HOURS    = 720;                   // 30 days × 24 h
 const FFT_N           = 1024;                  // next power-of-2 ≥ 720 for zero-padding
 const FFT_AMP_RATIO   = 2.0;                   // amplitude must be ≥ 2 × noise mean
 
-// Ensemble weights (must sum to 1.0)
+// Default ensemble weights (must sum to 1.0)
 const W_BAY = 0.40;
 const W_PS  = 0.35;
 const W_FFT = 0.25;
+
+export const DEFAULT_WEIGHTS: AlgorithmWeights = { bayesian: W_BAY, prefixSpan: W_PS, fft: W_FFT };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Ablation support — per-algorithm on/off via env vars
+//
+// Set exactly one of ONLY_BAYESIAN / ONLY_PREFIXSPAN / ONLY_FFT to "true" to
+// collapse the ensemble to a single algorithm (weight 1.0, others 0). With
+// none set, the default weighted ensemble above is used. scripts/run-ablation.ts
+// bypasses this and passes explicit weights instead, so it can compare all
+// four configurations in one process without touching env vars.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type AlgorithmWeights = {
+  bayesian:   number;
+  prefixSpan: number;
+  fft:        number;
+};
+
+export function resolveWeights(): AlgorithmWeights {
+  if (process.env["ONLY_BAYESIAN"] === "true")   return { bayesian: 1, prefixSpan: 0, fft: 0 };
+  if (process.env["ONLY_PREFIXSPAN"] === "true") return { bayesian: 0, prefixSpan: 1, fft: 0 };
+  if (process.env["ONLY_FFT"] === "true")        return { bayesian: 0, prefixSpan: 0, fft: 1 };
+  return DEFAULT_WEIGHTS;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Internal types
 // ═══════════════════════════════════════════════════════════════════════════
 
-interface AppEvent {
+export interface AppEvent {
   app:        string;
   occurredAt: number; // Unix ms
 }
@@ -374,6 +399,7 @@ function buildEnsemble(
   seqs:      SeqEntry[],
   fft:       Map<string, FftEntry>,
   threshold: number,
+  weights:   AlgorithmWeights = DEFAULT_WEIGHTS,
 ): PatternResult[] {
 
   const results: PatternResult[] = [];
@@ -387,7 +413,7 @@ function buildEnsemble(
 
     const psScore  = maxSeqSupport(app, seqs);
     const fftScore = appFftScore(app, fft);
-    const ensemble = W_BAY * entry.score + W_PS * psScore + W_FFT * fftScore;
+    const ensemble = weights.bayesian * entry.score + weights.prefixSpan * psScore + weights.fft * fftScore;
     if (ensemble < threshold) continue;
 
     emitted.add(key);
@@ -421,7 +447,7 @@ function buildEnsemble(
 
     const bayScore = maxBayesScore(firstApp, bayes);
     const fftScore = appFftScore(firstApp, fft);
-    const ensemble = W_BAY * bayScore + W_PS * seq.support + W_FFT * fftScore;
+    const ensemble = weights.bayesian * bayScore + weights.prefixSpan * seq.support + weights.fft * fftScore;
     if (ensemble < threshold) continue;
 
     emitted.add(key);
@@ -451,7 +477,7 @@ function buildEnsemble(
 
     const bayScore = maxBayesScore(entry.app, bayes);
     const psScore  = maxSeqSupport(entry.app, seqs);
-    const ensemble = W_BAY * bayScore + W_PS * psScore + W_FFT * entry.score;
+    const ensemble = weights.bayesian * bayScore + weights.prefixSpan * psScore + weights.fft * entry.score;
     if (ensemble < threshold) continue;
 
     emitted.add(key);
@@ -481,7 +507,7 @@ function buildEnsemble(
 // DB helpers
 // ═══════════════════════════════════════════════════════════════════════════
 
-function fetchFocusEvents(
+export function fetchFocusEvents(
   db:      Database.Database,
   userId:  string,
   sinceMs: number,
@@ -515,11 +541,33 @@ function isDuplicate(db: Database.Database, result: PatternResult): boolean {
 // Public API
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Run the three-algorithm ensemble over a pre-fetched event list and return
+ * the resulting candidates. Pure — no DB reads or writes — so it can be
+ * called repeatedly with different weight configurations (see
+ * scripts/run-ablation.ts) without mutating detected_patterns.
+ */
+export function computePatternCandidates(
+  userId:    string,
+  events:    AppEvent[],
+  nowMs:     number,
+  threshold: number,
+  weights:   AlgorithmWeights = resolveWeights(),
+): PatternResult[] {
+  const bayesMap = bayesianTimeOfDay(events, nowMs);
+  const sessions = buildSessions(events);
+  const seqList  = prefixSpan(sessions, MIN_SUPPORT);
+  const fftMap   = fftPeriodic(events, nowMs);
+
+  return buildEnsemble(userId, bayesMap, seqList, fftMap, threshold, weights);
+}
+
 export function analyzePatterns(): PatternResult[] {
   const db      = getDb();
   const nowMs   = Date.now();
   const sinceMs = nowMs - LOOKBACK_MS;
   const { minEventCount, alertThreshold } = config.pattern;
+  const weights = resolveWeights();
 
   const users = db
     .prepare(`SELECT DISTINCT user_id FROM user_events WHERE occurred_at >= ?`)
@@ -531,16 +579,7 @@ export function analyzePatterns(): PatternResult[] {
     const events = fetchFocusEvents(db, user_id, sinceMs);
     if (events.length < minEventCount) continue;
 
-    // ── Three algorithms ─────────────────────────────────────────────────
-    const bayesMap = bayesianTimeOfDay(events, nowMs);
-    const sessions = buildSessions(events);
-    const seqList  = prefixSpan(sessions, MIN_SUPPORT);
-    const fftMap   = fftPeriodic(events, nowMs);
-
-    // ── Ensemble ─────────────────────────────────────────────────────────
-    const candidates = buildEnsemble(
-      user_id, bayesMap, seqList, fftMap, alertThreshold,
-    );
+    const candidates = computePatternCandidates(user_id, events, nowMs, alertThreshold, weights);
 
     for (const result of candidates) {
       if (isDuplicate(db, result)) continue;

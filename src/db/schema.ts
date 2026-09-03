@@ -19,6 +19,18 @@ export type DetectedPattern = {
   notified: 0 | 1;
 };
 
+export type NotificationLog = {
+  id: number;
+  patternId: number;
+  triggeredAt: number; // Unix timestamp (ms) — when the notification fired
+  predictedTime: number; // Unix timestamp (ms) — expected time the pattern predicted
+  actualDelayMinutes: number; // minutes past the predicted time when triggered
+  confidenceScore: number; // ensemble score at trigger time, 0.0 – 1.0
+  algorithmScores: string; // JSON string: { bayesian, prefixspan, fft }
+  userFeedback: "correct" | "incorrect" | null;
+  feedbackAt: number | null; // Unix timestamp (ms)
+};
+
 let _db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
@@ -56,5 +68,23 @@ function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_patterns_notified
       ON detected_patterns (notified, detected_at);
+
+    CREATE TABLE IF NOT EXISTS notification_log (
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      pattern_id           INTEGER NOT NULL REFERENCES detected_patterns(id),
+      triggered_at         INTEGER NOT NULL,
+      predicted_time       INTEGER NOT NULL,
+      actual_delay_minutes INTEGER NOT NULL,
+      confidence_score     REAL    NOT NULL,
+      algorithm_scores     TEXT    NOT NULL DEFAULT '{}',
+      user_feedback        TEXT,
+      feedback_at          INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_notification_log_pattern
+      ON notification_log (pattern_id);
+
+    CREATE INDEX IF NOT EXISTS idx_notification_log_feedback
+      ON notification_log (user_feedback);
   `);
 }
