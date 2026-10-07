@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import Database from "better-sqlite3";
 import { config } from "../../config/config.js";
 
@@ -36,6 +38,8 @@ let _db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (_db) return _db;
 
+  // data/ is gitignored, so it does not exist on a fresh clone
+  fs.mkdirSync(path.dirname(config.db.path), { recursive: true });
   _db = new Database(config.db.path);
   _db.pragma("journal_mode = WAL");
   _db.pragma("foreign_keys = ON");

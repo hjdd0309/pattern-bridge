@@ -15,7 +15,18 @@ export type WebhookResponse = {
 };
 
 function buildMessage(pattern: PatternResult): string {
-  return `패턴 놓침 감지: ${pattern.description ?? JSON.stringify(pattern)}. 사용자에게 자연스럽게 한국어로 알려주세요.`;
+  const description = pattern.evidence["description"];
+  const detail = typeof description === "string" ? description : JSON.stringify(pattern);
+  return `패턴 놓침 감지: ${detail}. 사용자에게 자연스럽게 한국어로 알려주세요.`;
+}
+
+/**
+ * True when the webhook host could not be reached at all (refused, timeout,
+ * DNS) — as opposed to an HTTP error status, which sendWebhook() throws as a
+ * plain Error. Callers use this to stop a batch instead of retrying every item.
+ */
+export function isConnectionError(err: unknown): boolean {
+  return axios.isAxiosError(err) && !err.response;
 }
 
 export async function sendWebhook(

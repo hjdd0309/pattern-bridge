@@ -114,6 +114,33 @@ function wasAppUsedToday(
   return result !== undefined && result !== null;
 }
 
+/**
+ * Returns true if a missed notification for this (app, hour) was already
+ * logged today. The in-memory set is lost on restart, so notification_log is
+ * the durable half of the per-day dedup.
+ */
+function wasReportedToday(
+  db:         Database.Database,
+  userId:     string,
+  app:        string,
+  hour:       number,
+  midnight:   number,
+): boolean {
+  const result = db.prepare(`
+    SELECT 1
+    FROM   notification_log n
+    JOIN   detected_patterns p ON p.id = n.pattern_id
+    WHERE  p.user_id      = ?
+      AND  p.pattern_type = 'time_of_day'
+      AND  n.triggered_at >= ?
+      AND  json_extract(p.payload, '$.app')  = ?
+      AND  json_extract(p.payload, '$.hour') = ?
+    LIMIT  1
+  `).get(userId, midnight, app, hour);
+
+  return result !== undefined && result !== null;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════
@@ -167,6 +194,10 @@ export function checkMissedPatterns(): MissedEvent[] {
 
     const dedupKey = `${p.app}§${p.hour}§${todayDateString()}`;
     if (_reported.has(dedupKey)) continue;
+    if (wasReportedToday(db, userId, p.app, p.hour, midnight)) {
+      _reported.add(dedupKey);
+      continue;
+    }
 
     // Expected time as ms today
     const expectedMs = midnight + p.hour * 3_600_000;

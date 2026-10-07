@@ -1,11 +1,11 @@
-import Database from "better-sqlite3";
-import path from "path";
-import { fileURLToPath } from "url";
+import os from "os";
+import { getDb } from "../src/db/schema.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const db = new Database(path.resolve(__dirname, "../data/pattern-bridge.sqlite"));
+// getDb() creates data/ and the schema if missing, so seeding works on a fresh clone
+const db = getDb();
 
-const userId = "hjdd";
+// Same user id the collectors and missed-detector use
+const userId = os.hostname();
 const now = Date.now();
 const DAY = 86_400_000;
 const days = 30;

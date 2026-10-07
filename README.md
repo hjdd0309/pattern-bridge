@@ -1,4 +1,4 @@
-markdown# 🧠 Pattern Bridge
+# 🧠 Pattern Bridge
 
 > **말 안 해도 먼저 챙겨주는 AI 미들레이어**
 
@@ -21,6 +21,8 @@ Pattern Bridge는 사용자의 컴퓨터 행동 패턴을 백그라운드에서 
 기존 AI 어시스턴트는 사용자가 말해야 반응합니다.
 
 Pattern Bridge는 이걸 뒤집습니다:
+
+```
 사용자가 아무 말도 안 함
 ↓
 Pattern Bridge: "매일 9시에 Chrome 여는데 오늘 32분째 안 열었네"
@@ -28,6 +30,7 @@ Pattern Bridge: "매일 9시에 Chrome 여는데 오늘 32분째 안 열었네"
 OpenClaw에 webhook 신호
 ↓
 텔레그램: "오늘 Chrome 아직 안 여셨어요 👀"
+```
 
 ---
 
@@ -111,8 +114,11 @@ cp .env.example .env
 ```
 
 `.env` 수정:
+
+```
 OPENCLAW_WEBHOOK_URL=http://127.0.0.1:18789/hooks/agent
 OPENCLAW_TOKEN=your-secret-token
+```
 
 ### 실행
 

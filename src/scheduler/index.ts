@@ -7,7 +7,7 @@ import {
 } from "../analyzer/pattern-engine.js";
 import { checkMissedPatterns } from "../analyzer/missed-detector.js";
 import { logNotification } from "../analyzer/notification-log.js";
-import { sendWebhook } from "../trigger/openclaw-client.js";
+import { isConnectionError, sendWebhook } from "../trigger/openclaw-client.js";
 
 async function runPipeline(): Promise<void> {
   const ts = new Date().toISOString();
@@ -18,16 +18,24 @@ async function runPipeline(): Promise<void> {
   console.log(`[${ts}] ${pending.length} pending notification(s)`);
   for (const row of pending) {
     try {
-      await sendWebhook({
+      const res = await sendWebhook({
         userId: row.userId,
         patternType: row.patternType,
         score: row.score,
         evidence: JSON.parse(row.payload) as Record<string, unknown>,
       });
+      // Webhook not configured — nothing was delivered, so leave the rest pending.
+      if (!res.ok) break;
       markPatternNotified(row.id);
       console.log(`[${ts}] notified pattern #${row.id} (${row.patternType})`);
     } catch (err) {
       console.error(`[${ts}] failed to notify pattern #${row.id}:`, err instanceof Error ? err.message : err);
+      // OpenClaw unreachable: every remaining row would fail the same way,
+      // so stop here and retry the whole backlog next cycle.
+      if (isConnectionError(err)) {
+        console.error(`[${ts}] OpenClaw unreachable — ${pending.length} pending notification(s) deferred to next cycle`);
+        break;
+      }
     }
   }
   console.log(`[${ts}] pipeline end`);

@@ -112,7 +112,13 @@ function startLogTail() {
 
 function stopLogTail() {
   if (!logTailProcess) return;
-  logTailProcess.kill();
+  // With shell:true on Windows, kill() only ends cmd.exe and leaves the
+  // `pm2 logs` child running — one leaked process per hide/show. Kill the tree.
+  if (process.platform === 'win32' && logTailProcess.pid) {
+    exec(`taskkill /pid ${logTailProcess.pid} /T /F`, () => {});
+  } else {
+    logTailProcess.kill();
+  }
   logTailProcess = null;
 }
 

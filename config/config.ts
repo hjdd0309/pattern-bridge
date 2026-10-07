@@ -3,6 +3,12 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Load .env from the project root if present. Variables already set in the
+// environment (e.g. by PM2's ecosystem.config.cjs) take precedence.
+try {
+  process.loadEnvFile(path.resolve(__dirname, "../.env"));
+} catch { /* no .env — fall back to process.env / defaults */ }
+
 export const config = {
   db: {
     path: path.resolve(__dirname, "../data/pattern-bridge.sqlite"),
