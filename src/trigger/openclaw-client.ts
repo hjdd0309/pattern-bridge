@@ -32,10 +32,16 @@ export function isConnectionError(err: unknown): boolean {
 export async function sendWebhook(
   pattern: PatternResult
 ): Promise<WebhookResponse> {
-  const { webhookUrl, token, timeoutMs } = config.openclaw;
+  const { webhookUrl, token, notifyChannel, notifyTo, timeoutMs } = config.openclaw;
 
   if (!webhookUrl) {
     console.log("[openclaw] webhook 미설정, 스킵");
+    return { ok: false, status: 0, body: null };
+  }
+
+  // Without an explicit recipient the message could land in someone else's chat.
+  if (!notifyTo) {
+    console.log("[openclaw] NOTIFY_TO 미설정, 스킵");
     return { ok: false, status: 0, body: null };
   }
 
@@ -43,8 +49,8 @@ export async function sendWebhook(
     message: buildMessage(pattern),
     name: "PatternBridge",
     deliver: true,
-    channel: "telegram",
-    to: "7055746358",
+    channel: notifyChannel,
+    to: notifyTo,
   };
 
   const response = await axios.post<unknown>(webhookUrl, payload, {

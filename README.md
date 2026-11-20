@@ -118,6 +118,8 @@ cp .env.example .env
 ```
 OPENCLAW_WEBHOOK_URL=http://127.0.0.1:18789/hooks/agent
 OPENCLAW_TOKEN=your-secret-token
+NOTIFY_CHANNEL=telegram          # 또는 discord
+NOTIFY_TO=your-chat-or-channel-id # 텔레그램 chat id / 디스코드 채널 ID
 ```
 
 ### 실행

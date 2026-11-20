@@ -59,7 +59,7 @@ async function runMissedDetector(): Promise<void> {
       });
 
       try {
-        await sendWebhook({
+        const res = await sendWebhook({
           userId: "local",
           patternType: "missed",
           score: event.confidence,
@@ -71,7 +71,7 @@ async function runMissedDetector(): Promise<void> {
             description: `${event.label} (${event.missedSince}분 경과, 신뢰도 ${Math.round(event.confidence * 100)}%)`,
           },
         });
-        console.log(`[${ts}] webhook sent for missed: ${event.label}`);
+        if (res.ok) console.log(`[${ts}] webhook sent for missed: ${event.label}`);
       } catch (err) {
         console.error(`[${ts}] webhook failed for missed:`, err instanceof Error ? err.message : err);
       }

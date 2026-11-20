@@ -13,10 +13,7 @@ module.exports = {
       min_uptime: '10s',
       restart_delay: 2000,
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      env: {
-        OPENCLAW_WEBHOOK_URL: 'http://127.0.0.1:18789/hooks/agent',
-        OPENCLAW_TOKEN: 'pattern-bridge-secret',
-      },
+      // Secrets/endpoints live in .env (loaded by config/config.ts)
     },
   ],
 };
