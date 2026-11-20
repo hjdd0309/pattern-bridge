@@ -17,7 +17,13 @@ export const config = {
   openclaw: {
     webhookUrl: process.env["OPENCLAW_WEBHOOK_URL"] ?? "",
     token: process.env["OPENCLAW_TOKEN"] ?? "",
-    timeoutMs: 5_000,
+    // Where OpenClaw delivers the message: "telegram" | "discord" | ...
+    notifyChannel: process.env["NOTIFY_CHANNEL"] || "telegram",
+    // Recipient for that channel: Telegram chat id, Discord channel id, ...
+    notifyTo: process.env["NOTIFY_TO"] ?? "",
+    // OpenClaw can take well over 5s to admit a hook request. Timing out early
+    // makes the caller treat a delivered message as failed and resend it.
+    timeoutMs: Number(process.env["OPENCLAW_TIMEOUT_MS"]) || 30_000,
   },
 
   scheduler: {
