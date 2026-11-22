@@ -31,3 +31,4 @@ Thumbs.db
 
 # Anonymized dataset is meant to be shared
 !dataset/*.sqlite
+!dataset/**/*.sqlite

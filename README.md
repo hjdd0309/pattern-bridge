@@ -162,7 +162,19 @@ npm run ui
 $env:DB_PATH = "dataset/pattern-bridge-anon.sqlite"; npm run ui
 ```
 
-익명화 사본은 `python scripts/anonymize-data.py`로 다시 만들 수 있습니다.
+익명화 사본은 `python scripts/anonymize-data.py`로 다시 만들 수 있습니다. 시연용 소량 DB는 `dataset/pattern-bridge-demo-anon.sqlite`(이벤트 692건)입니다.
+
+### 외부 공개 데이터셋
+
+일반화 검증에 쓴 외부 공개 데이터셋을 `dataset/public/`에 포함했습니다. 각 폴더의 `pattern-bridge-*.sqlite`는 원본을 Pattern Bridge 스키마(`user_events`)로 변환한 것입니다. 라이선스와 인용 조건은 각 원본 데이터셋을 따릅니다.
+
+| 데이터셋 | 폴더 | 원본 파일 | 변환 DB |
+|---------|------|-----------|---------|
+| BEHACOM (PC 사용 행동, 12명) | `dataset/public/behacom/` | `Behacom.zip`, `behacom-slim.csv` | 이벤트 40,581건 |
+| LiveLab (iPhone 앱 사용) | `dataset/public/livelab/` | `apps.tar.gz` (`apps.sql`, `appusage.sql`) | 이벤트 2,215건 |
+| LSApp (Android 앱 사용, 292명) | `dataset/public/lsapp/` | `lsapp.tsv.gz` | 이벤트 347,434건 |
+
+> 압축을 푼 원본(`lsapp.tsv` 179MB, `appusage.sql` 114MB)은 GitHub의 파일당 100MB 제한 때문에 압축본만 포함했습니다.
 
 ---
 
