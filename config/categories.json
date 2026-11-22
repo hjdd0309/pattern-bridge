@@ -1,0 +1,144 @@
+{
+  "_comment": "Activity category rules for the intervention layer. Rules are checked in order; the first match wins. Each field is a case-insensitive regex tested against the app name, the URL domain, or the window/page title. Intervention levels: entertainment=active, sns=active, leisure=none, study=minimal, work=minimal, exercise=gentle.",
+  "rules": [
+    {
+      "category": "work",
+      "app": "Visual Studio Code|IntelliJ|PyCharm|Windows Terminal|PowerShell|명령 처리기|콘솔 창|Docker|Notepad|Sublime|Word|Excel|PowerPoint|HWP|한글|PDF|Acrobat|LibreOffice|wxmaxima|Show 2024|Python"
+    },
+    {
+      "category": "search",
+      "subcategory": "app-store",
+      "title": "Google Play 앱|Android 앱 Google Play|App Store"
+    },
+    {
+      "category": "work",
+      "title": "YouTube Studio|YouTube 스튜디오|채널 콘텐츠 - YouTube"
+    },
+    {
+      "category": "study",
+      "title": "(강의|특강|강좌|인강|수업|lecture|tutorial|원리|공부|문제풀이|기출).*(YouTube|유튜브)"
+    },
+    {
+      "category": "exercise",
+      "title": "(홈트|운동|workout|요가|yoga|스트레칭|stretching|필라테스|러닝|running).*(YouTube|유튜브)"
+    },
+    {
+      "category": "entertainment",
+      "subcategory": "shortform",
+      "domain": "tiktok\\.com",
+      "title": "#shorts|YouTube Shorts|TikTok|틱톡|Reels|릴스"
+    },
+    {
+      "category": "entertainment",
+      "subcategory": "shortform",
+      "app": "^TikTok"
+    },
+    {
+      "category": "leisure",
+      "subcategory": "music",
+      "app": "Spotify|Melon|멜론|Genie|FLO|YouTube Music|Pandora|Play Music|Podcast|SoundCloud|iHeart",
+      "domain": "music\\.youtube\\.com|melon\\.com|spotify\\.com"
+    },
+    {
+      "category": "entertainment",
+      "subcategory": "video",
+      "domain": "youtube\\.com|youtu\\.be",
+      "title": "YouTube",
+      "app": "^YouTube$"
+    },
+    {
+      "category": "leisure",
+      "subcategory": "movie",
+      "domain": "netflix\\.com|tving\\.com|wavve\\.com|coupangplay\\.com|disneyplus\\.com|watcha\\.com",
+      "title": "Netflix|넷플릭스|TVING|티빙|웨이브|쿠팡플레이|Disney\\+|왓챠",
+      "app": "Netflix"
+    },
+    {
+      "category": "entertainment",
+      "subcategory": "stream",
+      "domain": "twitch\\.tv|chzzk\\.naver\\.com|sooplive\\.co\\.kr|afreecatv\\.com",
+      "title": "Twitch|치지직|숲 - |SOOP|아프리카TV"
+    },
+    {
+      "category": "entertainment",
+      "subcategory": "webtoon",
+      "domain": "comic\\.naver\\.com|webtoon|page\\.kakao\\.com",
+      "title": "웹툰|webtoon"
+    },
+    {
+      "category": "entertainment",
+      "subcategory": "game",
+      "app": "NexonPlug|Solitaire|Steam|Battle\\.net|League of Legends|Riot|Xbox",
+      "domain": "battle\\.net|store\\.playstation\\.com|steampowered\\.com"
+    },
+    {
+      "category": "entertainment",
+      "subcategory": "community",
+      "domain": "namu\\.wiki|clien\\.net|dcinside\\.com|fmkorea\\.com|theqoo\\.net|ruliweb\\.com|reddit\\.com|quora\\.com",
+      "title": "나무위키|디시인사이드|에펨코리아|더쿠|루리웹|Reddit"
+    },
+    {
+      "category": "sns",
+      "domain": "instagram\\.com|facebook\\.com|x\\.com|twitter\\.com|threads\\.net|everytime\\.kr",
+      "title": "Instagram|인스타그램|Facebook|페이스북|/ X$| on X|Twitter|Threads|에브리타임",
+      "app": "^(Instagram|Facebook|Twitter|X|Threads|Reddit|Snapchat)$"
+    },
+    {
+      "category": "communication",
+      "app": "KakaoTalk|카카오톡|Telegram|Discord|WhatsApp|Messenger|Messages|Messaging|Skype|Slack|Hangouts|Outlook|Thunderbird|Gmail|Mail|Phone|Contacts",
+      "domain": "mail\\.google\\.com|discord\\.com|chat\\.khu\\.ac\\.kr",
+      "title": "Discord|메일|Gmail|카카오톡"
+    },
+    {
+      "category": "study",
+      "domain": "khcanvas|e-?campus|ecampus|swedu|aibootcamp|info21|mesl\\.khu|topcit|scholar\\.google|riss\\.kr|dbpia|arxiv\\.org|kocw|kmooc|inflearn|coursera|udemy",
+      "title": "e-Campus|이캠퍼스|LMS|주차학습|Lecture|강의|과제|시험|캡스톤|수강"
+    },
+    {
+      "category": "work",
+      "app": "Visual Studio Code|IntelliJ|PyCharm|Windows Terminal|PowerShell|Docker|Notepad|Sublime|Word|Excel|PowerPoint|HWP|한글|PDF|Acrobat|LibreOffice|Figma|Notion|Electron|Python|wxmaxima|Show 2024",
+      "domain": "github\\.com|vercel|netlify|figma\\.com|notion\\.so|docs\\.google|sheets\\.google|diagrams\\.net|canva\\.com|claude\\.ai|claude\\.com|gemini\\.google|chatgpt\\.com|openai\\.com|groq\\.com|developer\\.|data\\.go\\.kr|visitkorea",
+      "title": "Claude|Gemini|ChatGPT|OpenAI|Vercel|GitHub|Pull requests|Issues ·|Figma|Notion|draw\\.io|Google Sheets|Google Docs|프레젠테이션|Canva|GroqCloud|회의록|localhost|127\\.0\\.0\\.1|잇다|관광|멋쟁이사자처럼|멋사|likelion|나녕|Wispy|해커톤"
+    },
+    {
+      "category": "shopping",
+      "domain": "coupang\\.com|11st\\.co\\.kr|gmarket|musinsa|daisomall|uniqlo|abcmart|vans\\.co\\.kr|bunjang|danawa|e-himart|casetify|apple\\.com|yourclothes|29cm|ably|zigzag",
+      "title": "쿠팡|무신사|다이소|번개장터|다나와|11번가"
+    },
+    {
+      "category": "finance",
+      "domain": "tossinvest|finance\\.naver|upbit|bithumb|shinhancard|kbcard|dhlottery|nps\\.or\\.kr|nhis\\.or\\.kr|kifin",
+      "title": "증권|주가|토스증권|업비트|카드"
+    },
+    {
+      "category": "search",
+      "domain": "google\\.com|google\\.co\\.kr|search\\.naver\\.com|naver\\.com|daum\\.net|bing\\.com|weather\\.com",
+      "title": "Google 검색|네이버 검색|네이버지도|새 탭|New Tab"
+    },
+    {
+      "category": "system",
+      "app": "Explorer|Settings|SnippingTool|SearchHost|ShellHost|Shell Experience|Start Experience|Application Frame|AhnLab|V3|Setup|Uninst|Install|Update|COM Surrogate|File Picker|Credential|LockApp|Widget|LG|nProtect|INISAFE|DeskPins|PCmover|Laplink|Photos|Camera|Gallery|Cleaner|Problem Reporting|Copilot|OneDrive|Google Drive|Phone Link|Bandicam|CapCut|Filmora|mspaint|XPad|logger|Play Store|Slidejoy|Maps|dolphin|탐색기|작업 관리자|^설정$|끌기 도우미|Program Manager|앱 선택|WinStore|Script Host|DirectX|접근성"
+    },
+    {
+      "category": "search",
+      "app": "^Google$|Bing|AOL|Samsung Internet|Google Chrome$|^Chrome$"
+    },
+    {
+      "category": "communication",
+      "app": "WeChat|imo|Line|Viber|Signal"
+    },
+    {
+      "category": "sns",
+      "app": "Pinterest|Tumblr|LinkedIn"
+    },
+    {
+      "category": "shopping",
+      "app": "Amazon Shopping|eBay|Wish|쿠팡"
+    },
+    {
+      "category": "system",
+      "app": "Calendar|Clock|Calculator|Samsung Pay|Clean Master|Speedometer|In Call UI|Reward|Survey|S’more|Weather|Flashlight"
+    }
+  ],
+  "fallback": "other"
+}

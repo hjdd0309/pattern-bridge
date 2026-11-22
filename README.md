@@ -155,6 +155,9 @@ npm run ui
 
 - **유지**: 이벤트 종류, 발생 시각, 앱 이름, 탐지 패턴, 알림 로그 — 패턴 엔진이 읽는 값은 원본과 동일
 - **제거**: 창 제목, 파일 경로(확장자만 남김), 브라우저 URL(도메인만 남김)
+- **추가**: 창 제목, 도메인, 앱 이름으로 판단한 활동 카테고리 `category`(`entertainment`, `sns`, `study`, `work`, `leisure`, `exercise`, `communication`, `shopping`, `finance`, `search`, `system`, `other`)와, 해당하면 세부 분류 `subcategory`(`shortform`, `video`, `game`, `webtoon` 등)
+
+카테고리 규칙은 `config/categories.json`에 있습니다. 위에서부터 순서대로 검사해 처음 맞는 규칙을 적용하며, 공개 데이터셋 변환 DB에도 같은 규칙을 적용했습니다.
 
 이 DB로 바로 실행하려면:
 
