@@ -28,3 +28,6 @@ dist/
 Thumbs.db
 
 .claude/
+
+# Anonymized dataset is meant to be shared
+!dataset/*.sqlite

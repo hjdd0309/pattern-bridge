@@ -11,7 +11,10 @@ try {
 
 export const config = {
   db: {
-    path: path.resolve(__dirname, "../data/pattern-bridge.sqlite"),
+    // DB_PATH lets a fresh clone run on dataset/pattern-bridge-anon.sqlite
+    path: process.env["DB_PATH"]
+      ? path.resolve(__dirname, "..", process.env["DB_PATH"])
+      : path.resolve(__dirname, "../data/pattern-bridge.sqlite"),
   },
 
   openclaw: {
