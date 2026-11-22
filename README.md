@@ -179,6 +179,23 @@ $env:DB_PATH = "dataset/pattern-bridge-anon.sqlite"; npm run ui
 
 > 압축을 푼 원본(`lsapp.tsv` 179MB, `appusage.sql` 114MB)은 GitHub의 파일당 100MB 제한 때문에 압축본만 포함했습니다.
 
+#### PC·노트북 데이터셋 (OpenClaw 대상 환경)
+
+OpenClaw는 PC에서 동작하므로, 개입 판단 레이어 검증에는 아래 PC 데이터셋을 우선 사용합니다. 변환 스크립트는 `scripts/import-public-pc.py`입니다. 타임스탬프는 주 단위로 옮겨서 시간대와 요일을 그대로 유지했습니다.
+
+| 데이터셋 | 폴더 | 내용 | 라이선스 |
+|---------|------|------|---------|
+| [Labelled AWT](https://github.com/project-pivot/labelled-awt-data) (Beerepoot, 2024) | `dataset/public/awt/` | 1명의 4주 치 활성 창 로그(앱, 창 제목, 시작·종료 시각) 10,066건. 창마다 수동으로 단 활동 라벨이 있음 | GPL-3.0 |
+| [SWELL-KW](https://doi.org/10.17026/dans-x55-69zp) (Koldijk 외, 2014) | `dataset/public/swell/` | 25명이 휴식, 보통, 방해, 시간 압박 조건에서 일할 때의 분 단위 키보드·마우스·앱 전환 특징 3,139분 | CC BY-NC-SA 4.0 |
+| [GESIS Web Tracking](https://zenodo.org/records/4757574) (Kulshrestha 외, 2021) | `dataset/public/gesis/` | 독일 사용자 2,148명의 한 달 치 웹 방문 9,151,243건(도메인, 방문 시각, 활성 시간). 도메인마다 41종 카테고리가 붙어 있음 | CC BY-NC 4.0 |
+
+- GESIS는 원본 `browsing.csv`(680MB)에서 쓰는 컬럼만 남겨 `browsing-compact.csv.gz`(49MB)로 넣었습니다. 9,151,243건 전체가 들어 있습니다.
+- 엔진에 바로 넣을 수 있는 `pattern-bridge-gesis-sample50.sqlite`는 사용자 50명을 시드 고정으로 뽑은 표본입니다(208,054건). 인원을 바꾸려면 아래처럼 다시 만듭니다.
+
+```powershell
+$env:GESIS_USERS = "50"; python scripts/import-public-pc.py gesis dataset/public/gesis dataset/public/gesis/pattern-bridge-gesis-sample50.sqlite
+```
+
 ---
 
 ## 🔒 프라이버시

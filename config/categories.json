@@ -85,20 +85,20 @@
     },
     {
       "category": "communication",
-      "app": "KakaoTalk|카카오톡|Telegram|Discord|WhatsApp|Messenger|Messages|Messaging|Skype|Slack|Hangouts|Outlook|Thunderbird|Gmail|Mail|Phone|Contacts",
+      "app": "KakaoTalk|카카오톡|Telegram|Discord|WhatsApp|Messenger|Messages|Messaging|Skype|Slack|Hangouts|Outlook|Thunderbird|Gmail|Mail|Phone|Contacts|Teams|Zoom",
       "domain": "mail\\.google\\.com|discord\\.com|chat\\.khu\\.ac\\.kr",
       "title": "Discord|메일|Gmail|카카오톡"
     },
     {
       "category": "study",
-      "domain": "khcanvas|e-?campus|ecampus|swedu|aibootcamp|info21|mesl\\.khu|topcit|scholar\\.google|riss\\.kr|dbpia|arxiv\\.org|kocw|kmooc|inflearn|coursera|udemy",
+      "domain": "khcanvas|e-?campus|ecampus|swedu|aibootcamp|info21|mesl\\.khu|topcit|scholar\\.google|riss\\.kr|dbpia|arxiv\\.org|kocw|kmooc|inflearn|coursera|udemy|overleaf\\.com",
       "title": "e-Campus|이캠퍼스|LMS|주차학습|Lecture|강의|과제|시험|캡스톤|수강"
     },
     {
       "category": "work",
-      "app": "Visual Studio Code|IntelliJ|PyCharm|Windows Terminal|PowerShell|Docker|Notepad|Sublime|Word|Excel|PowerPoint|HWP|한글|PDF|Acrobat|LibreOffice|Figma|Notion|Electron|Python|wxmaxima|Show 2024",
+      "app": "Visual Studio Code|IntelliJ|PyCharm|Windows Terminal|PowerShell|Docker|Notepad|Sublime|Word|Excel|PowerPoint|HWP|한글|PDF|Acrobat|LibreOffice|Figma|Notion|Electron|Python|wxmaxima|Show 2024|Power BI|OneNote|OpenJDK",
       "domain": "github\\.com|vercel|netlify|figma\\.com|notion\\.so|docs\\.google|sheets\\.google|diagrams\\.net|canva\\.com|claude\\.ai|claude\\.com|gemini\\.google|chatgpt\\.com|openai\\.com|groq\\.com|developer\\.|data\\.go\\.kr|visitkorea",
-      "title": "Claude|Gemini|ChatGPT|OpenAI|Vercel|GitHub|Pull requests|Issues ·|Figma|Notion|draw\\.io|Google Sheets|Google Docs|프레젠테이션|Canva|GroqCloud|회의록|localhost|127\\.0\\.0\\.1|잇다|관광|멋쟁이사자처럼|멋사|likelion|나녕|Wispy|해커톤"
+      "title": "Claude|Gemini|ChatGPT|OpenAI|Vercel|GitHub|Pull requests|Issues ·|Figma|Notion|draw\\.io|Google Sheets|Google Docs|프레젠테이션|Canva|GroqCloud|회의록|localhost|127\\.0\\.0\\.1|잇다|관광|멋쟁이사자처럼|멋사|likelion|나녕|Wispy|해커톤|Overleaf|LaTeX|Power BI|Google Translate|Google Scholar|SharePoint|OneNote"
     },
     {
       "category": "shopping",

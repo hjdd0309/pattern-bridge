@@ -1,0 +1,48 @@
+raw,name,id
+adult,adult,1
+advertising,advertising,2
+alcoholandtobacco,alcohol and tobacco,3
+blacklist,black-list,4
+blogsandpersonal,blogs and personal,5
+business,business,6
+chatandmessaging,chat and messaging,7
+contentserver,content-server,8
+datingandpersonals,dating and personals,9
+deceptive,deceptive,10
+drugs,drugs,11
+economyandfinance,economy and finance,12
+education,education,13
+,email,14
+entertainment,entertainment,15
+food,food and recipes,16
+foodandrecipes,food and recipes,16
+foodfoodandrecipes,food and recipes,16
+gambling,gambling,17
+games,games,18
+health,health,19
+humor,humor,20
+illegalcontent,illegal-content,21
+informationtech,information-tech,22
+jobrelated,job-related,23
+mediasharing,media-sharing,24
+messageboardsandforums,message-boards and forums,25
+newsandmedia,news and media,26
+parked,parked,27
+personals,personals,28
+,productivity,29
+proxyandfilteravoidance,proxy and filter-avoidance,30
+realestate,real-estate,31
+religion,religion,32
+searchenginesandportals,search-engines and portals,33
+shopping,shopping,34
+socialnetworking,social-networking,35
+sport,sports,36
+sports,sports,36
+streamingmedia,streaming-media,37
+translation,translators,38
+translators,translators,38
+travel,travel,39
+uncategorized,uncategorized,40
+vehicles,vehicles,41
+virtualreality,virtual-reality,42
+weapons,weapons,43
