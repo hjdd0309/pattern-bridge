@@ -149,6 +149,21 @@ npm run ui
 
 > ⚠️ 모든 데이터는 **로컬에만 저장**됩니다. 외부 서버로 전송되는 데이터는 없으며, 본인이 직접 운영하는 OpenClaw 인스턴스로만 webhook이 호출됩니다.
 
+### 공개 데이터셋 (익명화)
+
+실제 수집한 데이터(이벤트 164,551건, 탐지 패턴 607건, 알림 10건)를 익명화해 `dataset/pattern-bridge-anon.sqlite`로 포함했습니다.
+
+- **유지**: 이벤트 종류, 발생 시각, 앱 이름, 탐지 패턴, 알림 로그 — 패턴 엔진이 읽는 값은 원본과 동일
+- **제거**: 창 제목, 파일 경로(확장자만 남김), 브라우저 URL(도메인만 남김)
+
+이 DB로 바로 실행하려면:
+
+```powershell
+$env:DB_PATH = "dataset/pattern-bridge-anon.sqlite"; npm run ui
+```
+
+익명화 사본은 `python scripts/anonymize-data.py`로 다시 만들 수 있습니다.
+
 ---
 
 ## 🔒 프라이버시
