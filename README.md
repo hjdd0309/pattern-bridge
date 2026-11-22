@@ -174,14 +174,12 @@ $env:DB_PATH = "dataset/pattern-bridge-anon.sqlite"; npm run ui
 | 데이터셋 | 폴더 | 원본 파일 | 변환 DB |
 |---------|------|-----------|---------|
 | BEHACOM (PC 사용 행동, 12명) | `dataset/public/behacom/` | `Behacom.zip`, `behacom-slim.csv` | 이벤트 40,581건 |
-| LiveLab (iPhone 앱 사용) | `dataset/public/livelab/` | `apps.tar.gz` (`apps.sql`, `appusage.sql`) | 이벤트 2,215건 |
-| LSApp (Android 앱 사용, 292명) | `dataset/public/lsapp/` | `lsapp.tsv.gz` | 이벤트 347,434건 |
 
-> 압축을 푼 원본(`lsapp.tsv` 179MB, `appusage.sql` 114MB)은 GitHub의 파일당 100MB 제한 때문에 압축본만 포함했습니다.
+> OpenClaw는 PC에서 동작하므로 폰 데이터셋(LSApp, LiveLab)은 포함하지 않습니다.
 
 #### PC·노트북 데이터셋 (OpenClaw 대상 환경)
 
-OpenClaw는 PC에서 동작하므로, 개입 판단 레이어 검증에는 아래 PC 데이터셋을 우선 사용합니다. 변환 스크립트는 `scripts/import-public-pc.py`입니다. 타임스탬프는 주 단위로 옮겨서 시간대와 요일을 그대로 유지했습니다.
+개입 판단 레이어 검증에는 아래 PC 데이터셋을 사용합니다. 변환 스크립트는 `scripts/import-public-pc.py`입니다. 타임스탬프는 주 단위로 옮겨서 시간대와 요일을 그대로 유지했습니다.
 
 | 데이터셋 | 폴더 | 내용 | 라이선스 |
 |---------|------|------|---------|
