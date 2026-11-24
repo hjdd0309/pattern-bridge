@@ -5,6 +5,7 @@ import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
 import { onNewDay } from "./daily.js";
 import { recordOutcomes, recover, step, STEP_MS } from "./manager.js";
+import { evaluateRules } from "./rules.js";
 import { getState, setState } from "./state.js";
 import { dayStartOf, trackUpTo, USER_ID, type Context } from "./tracker.js";
 
@@ -12,16 +13,8 @@ const TICK_MS = 60_000;
 // Judge each minute a few seconds after it ends, so the collector has flushed it.
 const TICK_OFFSET_MS = 3_000;
 
-type TickHandler = (minuteStart: number, context: Context) => void | Promise<void>;
-
-const handlers: TickHandler[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let stopping = false;
-
-/** Registers work to run once per minute with the start (ms) of the minute just ended. */
-export function onMinute(handler: TickHandler): void {
-  handlers.push(handler);
-}
 
 function scheduleNext(): void {
   if (stopping) return;
@@ -63,12 +56,10 @@ async function tick(minuteStart: number): Promise<void> {
     return;
   }
   console.log(`[guardian] ${describe(context)}`);
-  for (const h of handlers) {
-    try {
-      await h(minuteStart, context);
-    } catch (err) {
-      console.error("[guardian] tick handler failed:", err instanceof Error ? err.message : err);
-    }
+  try {
+    await evaluateRules(context, Date.now());
+  } catch (err) {
+    console.error("[guardian] rule evaluation failed:", err instanceof Error ? err.message : err);
   }
   try {
     recordOutcomes(Date.now());
