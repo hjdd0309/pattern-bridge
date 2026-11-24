@@ -1,5 +1,5 @@
 {
-  "_comment": "Activity category rules for the intervention layer. Rules are checked in order; the first match wins. Each field is a case-insensitive regex tested against the app name, the URL domain, or the window/page title. Intervention levels: entertainment=active, sns=active, leisure=none, study=minimal, work=minimal, exercise=gentle.",
+  "_comment": "Activity category rules for the intervention layer. Rules are checked in order; the first match wins. Each field is a case-insensitive regex tested against the app name, the URL domain, the window/page title, or the full URL (`url`, used only by the real-time classifier in src/collector/classifier.ts; the Python scripts ignore it). Intervention levels: entertainment=active, sns=active, leisure=none, study=minimal, work=minimal, exercise=gentle.",
   "rules": [
     {
       "category": "work",
@@ -26,7 +26,8 @@
       "category": "entertainment",
       "subcategory": "shortform",
       "domain": "tiktok\\.com",
-      "title": "#shorts|YouTube Shorts|TikTok|틱톡|Reels|릴스"
+      "title": "#shorts|YouTube Shorts|TikTok|틱톡|Reels|릴스",
+      "url": "youtube\\.com/shorts/|instagram\\.com/reels?/"
     },
     {
       "category": "entertainment",
@@ -72,10 +73,16 @@
       "domain": "battle\\.net|store\\.playstation\\.com|steampowered\\.com"
     },
     {
+      "category": "search",
+      "subcategory": "wiki",
+      "domain": "namu\\.wiki",
+      "title": "나무위키"
+    },
+    {
       "category": "entertainment",
       "subcategory": "community",
-      "domain": "namu\\.wiki|clien\\.net|dcinside\\.com|fmkorea\\.com|theqoo\\.net|ruliweb\\.com|reddit\\.com|quora\\.com",
-      "title": "나무위키|디시인사이드|에펨코리아|더쿠|루리웹|Reddit"
+      "domain": "clien\\.net|dcinside\\.com|fmkorea\\.com|theqoo\\.net|ruliweb\\.com|reddit\\.com|quora\\.com",
+      "title": "디시인사이드|에펨코리아|더쿠|루리웹|Reddit"
     },
     {
       "category": "sns",
@@ -85,9 +92,9 @@
     },
     {
       "category": "communication",
-      "app": "KakaoTalk|카카오톡|Telegram|Discord|WhatsApp|Messenger|Messages|Messaging|Skype|Slack|Hangouts|Outlook|Thunderbird|Gmail|Mail|Phone|Contacts|Teams|Zoom",
-      "domain": "mail\\.google\\.com|discord\\.com|chat\\.khu\\.ac\\.kr",
-      "title": "Discord|메일|Gmail|카카오톡"
+      "app": "KakaoTalk|카카오톡|Telegram|Discord|WhatsApp|Messenger|Messages|Messaging|Skype|Slack|Hangouts|Outlook|Thunderbird|Gmail|Mail|Phone|Contacts|Teams|Zoom|LinkedIn",
+      "domain": "mail\\.google\\.com|discord\\.com|chat\\.khu\\.ac\\.kr|linkedin\\.com",
+      "title": "Discord|메일|Gmail|카카오톡|LinkedIn"
     },
     {
       "category": "study",
@@ -129,7 +136,7 @@
     },
     {
       "category": "sns",
-      "app": "Pinterest|Tumblr|LinkedIn"
+      "app": "Pinterest|Tumblr"
     },
     {
       "category": "shopping",
