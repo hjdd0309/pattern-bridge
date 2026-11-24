@@ -90,5 +90,13 @@ function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_notification_log_feedback
       ON notification_log (user_feedback);
+
+    -- Collector liveness (single row, id = 1). See src/collector/heartbeat.ts.
+    CREATE TABLE IF NOT EXISTS collector_status (
+      id         INTEGER PRIMARY KEY CHECK (id = 1),
+      pid        INTEGER NOT NULL,
+      started_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `);
 }
