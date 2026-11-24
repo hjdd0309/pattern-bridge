@@ -4,7 +4,9 @@
 import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
 import { onNewDay } from "./daily.js";
+import { setExecutor } from "./executor.js";
 import { startExtensionLink } from "./extension-link.js";
+import { RealExecutor } from "./real-executor.js";
 import { recordOutcomes, recover, registerExtensionHandlers, step, STEP_MS } from "./manager.js";
 import { evaluateRules } from "./rules.js";
 import { getState, setState } from "./state.js";
@@ -105,6 +107,7 @@ export function startGuardian(): void {
     console.error("[guardian] daily work failed:", err instanceof Error ? err.message : err);
   }
   startExtensionLink();
+  setExecutor(new RealExecutor());
   registerExtensionHandlers();
   recover(Date.now())
     .catch((err: unknown) => console.error("[guardian] recovery failed:", err instanceof Error ? err.message : err))

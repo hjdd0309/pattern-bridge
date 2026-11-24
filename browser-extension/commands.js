@@ -225,10 +225,18 @@ const commandHandlers = {
 
   async open_urls({ urls }) {
     let opened = 0;
+    let windowId = null;
     for (const url of Array.isArray(urls) ? urls : []) {
       if (!isHttpUrl(url)) continue;
-      await chrome.tabs.create({ url, active: opened === 0 });
+      const tab = await chrome.tabs.create({ url, active: opened === 0 });
+      windowId = windowId ?? tab.windowId;
       opened++;
+    }
+    // Focus mode minimizes everything first: bring the window with the new tabs back.
+    if (windowId !== null) {
+      try {
+        await chrome.windows.update(windowId, { state: 'normal', focused: true });
+      } catch { /* window gone */ }
     }
     return { opened };
   },

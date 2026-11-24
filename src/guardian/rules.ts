@@ -9,6 +9,7 @@ import { notify } from "./messenger.js";
 import { MINUTE_MS } from "./minute.js";
 import { isPaused } from "./pause.js";
 import { getState, setState } from "./state.js";
+import { computeWorkspace } from "./workspace.js";
 import { USER_ID, type Context } from "./tracker.js";
 
 // Rules, evaluated once per minute on the fresh context. A rule only decides;
@@ -72,7 +73,11 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   for (const it of active) if (it.rule === "R1") await cancel(it, "superseded_by_R2");
   const it = await startIntervention(
     "R2",
-    { hour, target, threshold, productive: ctx.today.productive, dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days },
+    {
+      hour, target, threshold, productive: ctx.today.productive, dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days,
+      // Decided now and kept in the plan: the agent only ever sees the intervention ID.
+      workspace: computeWorkspace(getDb(), cfg, USER_ID, now),
+    },
     r2.graceSeconds * 1000,
     now,
   );
