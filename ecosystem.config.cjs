@@ -2,8 +2,8 @@
 module.exports = {
   apps: [
     {
-      name: 'pattern-bridge',
-      script: 'src/index.ts',
+      name: 'pattern-bridge-collector',
+      script: 'src/collector/main.ts',
       interpreter: 'node',
       interpreter_args: '--import tsx',
       cwd: __dirname,
