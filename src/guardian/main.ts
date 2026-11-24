@@ -2,12 +2,13 @@
 // anything itself; it reads what the collector wrote to SQLite, judges the
 // user's context once a minute, and acts on it.
 import { getConfig } from "./config.js";
+import { trackUpTo, type Context } from "./tracker.js";
 
 const TICK_MS = 60_000;
 // Judge each minute a few seconds after it ends, so the collector has flushed it.
 const TICK_OFFSET_MS = 3_000;
 
-type TickHandler = (minuteStart: number) => void | Promise<void>;
+type TickHandler = (minuteStart: number, context: Context) => void | Promise<void>;
 
 const handlers: TickHandler[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -25,10 +26,30 @@ function scheduleNext(): void {
   timer = setTimeout(() => void tick(next - TICK_OFFSET_MS - TICK_MS), next - now);
 }
 
+function describe(c: Context): string {
+  const cur = c.current ? `${c.current.grp}${c.current.subcategory ? "/" + c.current.subcategory : ""}` : "-";
+  return `now=${cur} streak=${c.streakMinutes}m today: productive=${c.today.productive}m consumption=${c.today.consumption}m idle=${c.today.idle}m`;
+}
+
 async function tick(minuteStart: number): Promise<void> {
+  let context: Context;
+  try {
+    context = trackUpTo(getConfig(), minuteStart);
+  } catch (err) {
+    console.error("[guardian] tracking failed:", err instanceof Error ? err.message : err);
+    scheduleNext();
+    return;
+  }
+  if (!context.collectorAlive) {
+    // Stale data would be judged as "still doing the last thing": skip rules.
+    console.warn("[guardian] collector heartbeat is stale — judging paused");
+    scheduleNext();
+    return;
+  }
+  console.log(`[guardian] ${describe(context)}`);
   for (const h of handlers) {
     try {
-      await h(minuteStart);
+      await h(minuteStart, context);
     } catch (err) {
       console.error("[guardian] tick handler failed:", err instanceof Error ? err.message : err);
     }
