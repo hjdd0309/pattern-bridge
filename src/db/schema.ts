@@ -98,5 +98,71 @@ function initSchema(db: Database.Database): void {
       started_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+
+    -- ── Intervention layer (guardian) ─────────────────────────────────────
+
+    -- One row per judged minute: what the user was mostly doing in it.
+    -- grp is the intervention group (entertainment / productive / leisure /
+    -- neutral / unclassified / idle). idle_reason is set when grp = 'idle'.
+    -- No titles or URLs: domain only, so this table can outlive raw events.
+    CREATE TABLE IF NOT EXISTS activity_minutes (
+      minute_start INTEGER PRIMARY KEY,
+      grp          TEXT    NOT NULL,
+      category     TEXT,
+      subcategory  TEXT,
+      app          TEXT,
+      domain       TEXT,
+      audible      INTEGER NOT NULL DEFAULT 0,
+      idle_reason  TEXT
+    );
+
+    -- Every intervention the rules decided, and what happened to it.
+    -- status: pending (grace running) / paused (user left the trigger during
+    -- grace) / executed / cancelled. plan/result are JSON. executed_by:
+    -- agent | fallback. outcome_grp: activity group 10 minutes later.
+    CREATE TABLE IF NOT EXISTS interventions (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule              TEXT    NOT NULL,
+      status            TEXT    NOT NULL,
+      decided_at        INTEGER NOT NULL,
+      grace_until       INTEGER,
+      paused_remaining  INTEGER,
+      executed_at       INTEGER,
+      executed_by       TEXT,
+      cancel_reason     TEXT,
+      plan              TEXT    NOT NULL DEFAULT '{}',
+      result            TEXT    NOT NULL DEFAULT '{}',
+      outcome_grp       TEXT,
+      outcome_at        INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_interventions_status
+      ON interventions (status, decided_at);
+
+    -- Per-day totals (minutes), kept for baseline tuning and evaluation even
+    -- for days left out of the baseline. day is the guardian day (05:00 start).
+    CREATE TABLE IF NOT EXISTS daily_summary (
+      day            TEXT    PRIMARY KEY,
+      day_type       TEXT    NOT NULL,
+      active_minutes INTEGER NOT NULL DEFAULT 0,
+      productive     INTEGER NOT NULL DEFAULT 0,
+      entertainment  INTEGER NOT NULL DEFAULT 0,
+      leisure        INTEGER NOT NULL DEFAULT 0,
+      neutral        INTEGER NOT NULL DEFAULT 0,
+      unclassified   INTEGER NOT NULL DEFAULT 0,
+      idle           INTEGER NOT NULL DEFAULT 0,
+      pause_count    INTEGER NOT NULL DEFAULT 0,
+      pause_minutes  INTEGER NOT NULL DEFAULT 0,
+      in_baseline    INTEGER NOT NULL DEFAULT 0,
+      updated_at     INTEGER NOT NULL
+    );
+
+    -- Small key/value store for guardian state that must survive restarts
+    -- (pause, last R3 send, cached baseline, latest context snapshot).
+    CREATE TABLE IF NOT EXISTS guardian_state (
+      key        TEXT    PRIMARY KEY,
+      value      TEXT    NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `);
 }
