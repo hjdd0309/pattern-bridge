@@ -1,9 +1,13 @@
+import { getDb } from "../db/schema.js";
+import { getBaseline } from "./baseline.js";
 import { getConfig } from "./config.js";
+import { dayTypeOf } from "./history.js";
 import { activeInterventions, latestExecuted } from "./interventions.js";
-import { startIntervention } from "./manager.js";
+import { cancel, startIntervention } from "./manager.js";
 import { MINUTE_MS } from "./minute.js";
 import { isPaused } from "./pause.js";
-import type { Context } from "./tracker.js";
+import { getState, setState } from "./state.js";
+import { USER_ID, type Context } from "./tracker.js";
 
 // Rules, evaluated once per minute on the fresh context. A rule only decides;
 // the manager runs the grace period and the action.
@@ -34,7 +38,45 @@ export async function evaluateR1(ctx: Context, now: number): Promise<void> {
   await startIntervention("R1", { streakMinutes: ctx.streakMinutes, threshold, night }, r1.graceSeconds * 1000, now);
 }
 
+/**
+ * R2: checked on the hour. If today's productive time is below deficitRatio of
+ * the usual cumulative amount by this hour (same day type), and the user is
+ * not working right now, start focus mode after a grace period. Once today's
+ * total reaches enoughRatio of the usual daily total, R2 is done for the day.
+ */
+export async function evaluateR2(ctx: Context, now: number): Promise<void> {
+  const cfg = getConfig();
+  const r2 = cfg.rules.R2;
+  if (new Date(ctx.at).getMinutes() !== 0) return; // on the hour only
+  if (getState<number>("r2DoneDay") === ctx.dayStart) return;
+
+  const set = getBaseline(getDb(), cfg, USER_ID, ctx.dayStart, now)[dayTypeOf(ctx.dayStart)];
+  if (ctx.today.productive >= r2.enoughRatio * set.dailyMedian) {
+    setState("r2DoneDay", ctx.dayStart, now);
+    console.log(`[R2] enough for today (${ctx.today.productive}m ≥ ${r2.enoughRatio} × ${set.dailyMedian}m)`);
+    return;
+  }
+
+  const hour = new Date(ctx.at).getHours();
+  const target = set.cumulativeAt[String(hour)] ?? 0;
+  const threshold = r2.deficitRatio * target;
+  if (ctx.today.productive >= threshold) return;
+  const grp = ctx.current?.grp;
+  if (!grp || grp === "productive" || grp === "idle") return;
+
+  const active = activeInterventions();
+  if (active.some((it) => it.rule === "R2")) return;
+  for (const it of active) if (it.rule === "R1") await cancel(it, "superseded_by_R2");
+  await startIntervention(
+    "R2",
+    { hour, target, threshold, productive: ctx.today.productive, dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days },
+    r2.graceSeconds * 1000,
+    now,
+  );
+}
+
 export async function evaluateRules(ctx: Context, now: number): Promise<void> {
   if (isPaused(now)) return;
+  await evaluateR2(ctx, now); // R2 first: it outranks R1
   await evaluateR1(ctx, now);
 }
