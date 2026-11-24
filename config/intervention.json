@@ -87,8 +87,14 @@
   },
 
   "demo": {
-    "_comment": "When enabled, 'overrides' is deep-merged over this file. Values to be decided by trying them out.",
+    "_comment": "When enabled, 'overrides' is deep-merged over this file (short values for trying it out; tune for the demo). npm run guardian:trigger -- R2 runs the R2 check right away (demo mode only).",
     "enabled": false,
-    "overrides": {}
+    "overrides": {
+      "rules": {
+        "R1": { "dayMinutes": 2, "nightMinutes": 2, "graceSeconds": 30, "reopenWindowMinutes": 3, "reopenGraceSeconds": 10 },
+        "R2": { "graceSeconds": 30 },
+        "R3": { "thresholdMinutes": 5, "repeatMinutes": 3 }
+      }
+    }
   }
 }

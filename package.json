@@ -26,7 +26,8 @@
     "guardian:restart": "pm2 restart pattern-bridge-guardian",
     "guardian:logs": "pm2 logs pattern-bridge-guardian",
     "shortcut": "powershell -ExecutionPolicy Bypass -File scripts\\create-shortcut.ps1",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "guardian:trigger": "tsx scripts/guardian-trigger.ts"
   },
   "keywords": [],
   "author": "",
