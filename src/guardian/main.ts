@@ -4,6 +4,7 @@
 import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
 import { onNewDay } from "./daily.js";
+import { recordOutcomes, recover, step, STEP_MS } from "./manager.js";
 import { getState, setState } from "./state.js";
 import { dayStartOf, trackUpTo, USER_ID, type Context } from "./tracker.js";
 
@@ -69,13 +70,34 @@ async function tick(minuteStart: number): Promise<void> {
       console.error("[guardian] tick handler failed:", err instanceof Error ? err.message : err);
     }
   }
+  try {
+    recordOutcomes(Date.now());
+  } catch (err) {
+    console.error("[guardian] outcome recording failed:", err instanceof Error ? err.message : err);
+  }
   scheduleNext();
+}
+
+// Grace periods, deadlines and pause/resume run on a faster loop than the
+// minute tick. Steps never overlap.
+let stepTimer: ReturnType<typeof setInterval> | null = null;
+let stepping = false;
+
+function startStepLoop(): void {
+  stepTimer = setInterval(() => {
+    if (stepping) return;
+    stepping = true;
+    step(Date.now())
+      .catch((err: unknown) => console.error("[guardian] step failed:", err instanceof Error ? err.message : err))
+      .finally(() => { stepping = false; });
+  }, STEP_MS);
 }
 
 function shutdown(signal: string): void {
   if (stopping) return;
   stopping = true;
   if (timer) clearTimeout(timer);
+  if (stepTimer) clearInterval(stepTimer);
   console.log(`[guardian] ${signal} received, stopping`);
   process.exit(0);
 }
@@ -90,6 +112,9 @@ export function startGuardian(): void {
   } catch (err) {
     console.error("[guardian] daily work failed:", err instanceof Error ? err.message : err);
   }
+  recover(Date.now())
+    .catch((err: unknown) => console.error("[guardian] recovery failed:", err instanceof Error ? err.message : err))
+    .finally(startStepLoop);
   scheduleNext();
 }
 
