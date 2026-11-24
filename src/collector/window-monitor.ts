@@ -1,6 +1,7 @@
 import os from "os";
 import activeWindow from "active-win";
 import { logEvent } from "./log-event.js";
+import { classify } from "./classifier.js";
 
 type WindowState = {
   title: string;
@@ -35,6 +36,7 @@ async function poll(): Promise<void> {
       app: current.app,
       platform: result.platform,
       processId: result.owner.processId,
+      ...classify({ app: current.app, title: current.title }),
     },
   });
 

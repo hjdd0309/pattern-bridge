@@ -1,6 +1,7 @@
 import http from "http";
 import os from "os";
-import { logEvent } from "./log-event.js";
+import { logEvents, type EventInput } from "./log-event.js";
+import { classify } from "./classifier.js";
 
 const DEFAULT_PORT = 7701;
 const USER_ID = os.hostname();
@@ -27,28 +28,90 @@ function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): voi
   let body = "";
   req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
   req.on("end", () => {
+    let parsed: Record<string, unknown>;
     try {
-      const parsed = JSON.parse(body) as Record<string, unknown>;
-      const url = typeof parsed["url"] === "string" ? parsed["url"] : "";
-      const title = typeof parsed["title"] === "string" ? parsed["title"] : "";
-      const userId = typeof parsed["userId"] === "string" ? parsed["userId"] : USER_ID;
+      parsed = JSON.parse(body) as Record<string, unknown>;
+    } catch {
+      reply(res, 400, { ok: false, error: "invalid JSON" });
+      return;
+    }
 
-      if (!url) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: false, error: "url required" }));
+    const event = str(parsed["event"]) || "updated";
+    const events: EventInput[] = [];
+
+    if (event === "snapshot") {
+      const tabs = Array.isArray(parsed["tabs"]) ? parsed["tabs"] : [];
+      for (const t of tabs) {
+        const e = toTabEvent("snapshot", t as Record<string, unknown>);
+        if (e) events.push(e);
+      }
+    } else if (event === "removed") {
+      const tabId = num(parsed["tabId"]);
+      if (tabId === null) {
+        reply(res, 400, { ok: false, error: "tabId required" });
         return;
       }
-
-      logEvent({ userId, action: "browser_url", metadata: { url, title } });
-      console.log(`[browser-monitor] ${title} — ${url}`);
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: true }));
-    } catch {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "invalid JSON" }));
+      events.push({
+        userId: USER_ID,
+        action: "browser_tab",
+        metadata: { event, tabId, windowId: num(parsed["windowId"]) },
+      });
+    } else {
+      const e = toTabEvent(event, parsed);
+      if (!e) {
+        reply(res, 400, { ok: false, error: "url required" });
+        return;
+      }
+      events.push(e);
     }
+
+    if (events.length > 0) logEvents(events);
+    if (event !== "snapshot") {
+      const m = events[0]?.metadata ?? {};
+      console.log(`[browser-monitor] ${event} tab=${String(m["tabId"])} ${String(m["category"] ?? "")} ${String(m["url"] ?? "")}`);
+    } else {
+      console.log(`[browser-monitor] snapshot: ${events.length} tab(s)`);
+    }
+    reply(res, 200, { ok: true });
   });
+}
+
+function reply(res: http.ServerResponse, status: number, body: object): void {
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/**
+ * One tab report → browser_tab event with its category. Tabs are classified by
+ * URL and title only: passing the app name ("Google Chrome") would make
+ * unknown sites fall into the browser rule (search) instead of `other`.
+ */
+function toTabEvent(event: string, t: Record<string, unknown>): EventInput | null {
+  const url = str(t["url"]);
+  if (!url) return null;
+  const title = str(t["title"]);
+  return {
+    userId: USER_ID,
+    action: "browser_tab",
+    metadata: {
+      event,
+      tabId: num(t["tabId"]),
+      windowId: num(t["windowId"]),
+      url,
+      title,
+      active: t["active"] === true,
+      audible: t["audible"] === true,
+      ...classify({ url, title }),
+    },
+  };
 }
 
 export function startBrowserMonitor(port = DEFAULT_PORT): void {
