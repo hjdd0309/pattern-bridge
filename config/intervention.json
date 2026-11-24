@@ -87,7 +87,7 @@
   },
 
   "demo": {
-    "_comment": "When enabled, 'overrides' is deep-merged over this file (short values for trying it out; tune for the demo). npm run guardian:trigger -- R2 runs the R2 check right away (demo mode only).",
+    "_comment": "When enabled, 'overrides' is deep-merged over this file (short values for trying it out; tune for the demo). Also turned on by the env var GUARDIAN_DEMO=1. npm run guardian:trigger -- R2 runs the R2 check right away (demo mode only).",
     "enabled": false,
     "overrides": {
       "rules": {
