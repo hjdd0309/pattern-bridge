@@ -32,6 +32,15 @@ export function isConnectionError(err: unknown): boolean {
 export async function sendWebhook(
   pattern: PatternResult
 ): Promise<WebhookResponse> {
+  return sendAgentMessage(buildMessage(pattern));
+}
+
+/**
+ * Wakes the OpenClaw agent with `message` and has it deliver its reply to the
+ * configured channel. Throws on an HTTP error status; a connection error is an
+ * axios error (see isConnectionError). Error messages never include headers.
+ */
+export async function sendAgentMessage(message: string): Promise<WebhookResponse> {
   const { webhookUrl, token, notifyChannel, notifyTo, timeoutMs } = config.openclaw;
 
   if (!webhookUrl) {
@@ -46,7 +55,7 @@ export async function sendWebhook(
   }
 
   const payload = {
-    message: buildMessage(pattern),
+    message,
     name: "PatternBridge",
     deliver: true,
     channel: notifyChannel,

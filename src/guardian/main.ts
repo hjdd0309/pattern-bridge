@@ -4,6 +4,8 @@
 import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
 import { onNewDay } from "./daily.js";
+import { recordOutcomes, recover, step, STEP_MS } from "./manager.js";
+import { evaluateRules } from "./rules.js";
 import { getState, setState } from "./state.js";
 import { dayStartOf, trackUpTo, USER_ID, type Context } from "./tracker.js";
 
@@ -11,16 +13,8 @@ const TICK_MS = 60_000;
 // Judge each minute a few seconds after it ends, so the collector has flushed it.
 const TICK_OFFSET_MS = 3_000;
 
-type TickHandler = (minuteStart: number, context: Context) => void | Promise<void>;
-
-const handlers: TickHandler[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let stopping = false;
-
-/** Registers work to run once per minute with the start (ms) of the minute just ended. */
-export function onMinute(handler: TickHandler): void {
-  handlers.push(handler);
-}
 
 function scheduleNext(): void {
   if (stopping) return;
@@ -62,20 +56,39 @@ async function tick(minuteStart: number): Promise<void> {
     return;
   }
   console.log(`[guardian] ${describe(context)}`);
-  for (const h of handlers) {
-    try {
-      await h(minuteStart, context);
-    } catch (err) {
-      console.error("[guardian] tick handler failed:", err instanceof Error ? err.message : err);
-    }
+  try {
+    await evaluateRules(context, Date.now());
+  } catch (err) {
+    console.error("[guardian] rule evaluation failed:", err instanceof Error ? err.message : err);
+  }
+  try {
+    recordOutcomes(Date.now());
+  } catch (err) {
+    console.error("[guardian] outcome recording failed:", err instanceof Error ? err.message : err);
   }
   scheduleNext();
+}
+
+// Grace periods, deadlines and pause/resume run on a faster loop than the
+// minute tick. Steps never overlap.
+let stepTimer: ReturnType<typeof setInterval> | null = null;
+let stepping = false;
+
+function startStepLoop(): void {
+  stepTimer = setInterval(() => {
+    if (stepping) return;
+    stepping = true;
+    step(Date.now())
+      .catch((err: unknown) => console.error("[guardian] step failed:", err instanceof Error ? err.message : err))
+      .finally(() => { stepping = false; });
+  }, STEP_MS);
 }
 
 function shutdown(signal: string): void {
   if (stopping) return;
   stopping = true;
   if (timer) clearTimeout(timer);
+  if (stepTimer) clearInterval(stepTimer);
   console.log(`[guardian] ${signal} received, stopping`);
   process.exit(0);
 }
@@ -90,6 +103,9 @@ export function startGuardian(): void {
   } catch (err) {
     console.error("[guardian] daily work failed:", err instanceof Error ? err.message : err);
   }
+  recover(Date.now())
+    .catch((err: unknown) => console.error("[guardian] recovery failed:", err instanceof Error ? err.message : err))
+    .finally(startStepLoop);
   scheduleNext();
 }
 
