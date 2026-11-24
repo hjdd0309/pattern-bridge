@@ -1,0 +1,94 @@
+{
+  "_comment": "Policy for the intervention layer (guardian). config/categories.json says WHAT an activity is; this file says HOW each kind is treated. Changes apply when the guardian restarts.",
+
+  "groups": {
+    "_comment": "category (from categories.json) -> intervention group. Unlisted categories fall into 'unclassified'.",
+    "mapping": {
+      "entertainment": "entertainment",
+      "sns": "entertainment",
+      "study": "productive",
+      "work": "productive",
+      "leisure": "leisure",
+      "exercise": "leisure",
+      "search": "neutral",
+      "communication": "neutral",
+      "system": "neutral",
+      "shopping": "neutral",
+      "finance": "neutral",
+      "other": "unclassified"
+    },
+    "exerciseCategories": ["exercise"],
+    "watchingSubcategories": ["shortform", "video", "stream", "movie"]
+  },
+
+  "day": {
+    "_comment": "A day runs from startHour to startHour the next morning (05:00 -> 05:00).",
+    "startHour": 5
+  },
+
+  "idle": {
+    "noInputMinutes": 5,
+    "heartbeatStaleSeconds": 120,
+    "lockApps": ["LockApp"]
+  },
+
+  "streak": {
+    "_comment": "Entertainment streak resets after this many consecutive minutes of productive/exercise, or of anything that is not entertainment (incl. idle).",
+    "resetProductiveMinutes": 10,
+    "resetNonEntertainmentMinutes": 30
+  },
+
+  "rules": {
+    "R1": {
+      "dayMinutes": 40,
+      "nightMinutes": 20,
+      "nightStartHour": 0,
+      "nightEndHour": 5,
+      "graceSeconds": 300,
+      "reopenWindowMinutes": 10,
+      "reopenGraceSeconds": 60
+    },
+    "R2": {
+      "deficitRatio": 0.5,
+      "enoughRatio": 0.7,
+      "graceSeconds": 300,
+      "baselineDays": 30,
+      "minActiveMinutesPerDay": 30
+    },
+    "R3": {
+      "thresholdMinutes": 120,
+      "repeatMinutes": 30
+    }
+  },
+
+  "workspace": {
+    "recentFileDays": 7,
+    "maxFiles": 2,
+    "maxDomains": 3,
+    "hourWindow": 1,
+    "docExtensions": [".pdf", ".docx", ".hwp", ".hwpx", ".pptx", ".xlsx"],
+    "defaults": ["https://e-campus.khu.ac.kr", "https://www.notion.so"]
+  },
+
+  "privacy": {
+    "rawRetentionDays": 30,
+    "minuteRetentionDays": 90,
+    "sensitiveDomains": []
+  },
+
+  "pause": {
+    "presets": ["30m", "1h", "today", "manual"],
+    "maxMinutes": 600
+  },
+
+  "webhook": {
+    "maxPerMinute": 1,
+    "maxPerDay": 40
+  },
+
+  "demo": {
+    "_comment": "When enabled, 'overrides' is deep-merged over this file. Values to be decided by trying them out.",
+    "enabled": false,
+    "overrides": {}
+  }
+}
