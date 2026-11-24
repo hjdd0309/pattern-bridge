@@ -5,11 +5,12 @@ import { MINUTE_MS } from "./minute.js";
 
 // Per-day activity totals for the baseline and daily_summary.
 //
-// Days the guardian was running come from activity_minutes. Older days (e.g.
-// the time-shifted demo dataset) only have raw events, so they are rebuilt
-// from window_focus: each window lasts until the next one, capped at
-// IDLE_GAP_MS like the original app-time calculation, so a long gap counts as
-// away rather than as the last window. Both paths use the same group mapping.
+// Minutes the guardian judged come from activity_minutes. Every other minute
+// (days before the guardian ran, e.g. the time-shifted demo dataset, or the
+// part of a day before it was started) is rebuilt from window_focus: each
+// window lasts until the next one, capped at IDLE_GAP_MS like the original
+// app-time calculation, so a long gap counts as away rather than as the last
+// window. Both paths use the same group mapping.
 
 const IDLE_GAP_MS = 5 * MINUTE_MS;
 
@@ -20,7 +21,7 @@ export type DayStats = {
   day: string;
   dayStart: number;
   dayType: DayType;
-  source: "minutes" | "events" | "none";
+  source: "minutes" | "events" | "mixed" | "none";
   minutes: Record<MinuteGroup, number>;
   /** Minutes at the PC (everything except idle). */
   active: number;
@@ -49,11 +50,11 @@ export function shiftDays(dayStart: number, n: number): number {
   return d.getTime();
 }
 
-function fromMinutes(db: Database.Database, dayStart: number, dayEnd: number, stats: DayStats): boolean {
+/** Credits activity_minutes rows and returns the set of minutes they cover. */
+function fromMinutes(db: Database.Database, dayStart: number, dayEnd: number, stats: DayStats): Set<number> {
   const rows = db
     .prepare("SELECT minute_start, grp FROM activity_minutes WHERE minute_start >= ? AND minute_start < ?")
     .all(dayStart, dayEnd) as Array<{ minute_start: number; grp: MinuteGroup }>;
-  if (rows.length === 0) return false;
   for (const r of rows) {
     stats.minutes[r.grp]++;
     if (r.grp === "productive") {
@@ -61,10 +62,14 @@ function fromMinutes(db: Database.Database, dayStart: number, dayEnd: number, st
       stats.productiveByHour[h] = (stats.productiveByHour[h] ?? 0) + 1;
     }
   }
-  stats.source = "minutes";
-  return true;
+  return new Set(rows.map((r) => r.minute_start));
 }
 
+/**
+ * Credits window_focus time for every minute NOT already covered by
+ * activity_minutes (e.g. the morning before the guardian was started).
+ * Returns whether any event time was credited.
+ */
 function fromEvents(
   db: Database.Database,
   cfg: GuardianConfig,
@@ -72,7 +77,8 @@ function fromEvents(
   dayStart: number,
   dayEnd: number,
   stats: DayStats,
-): void {
+  covered: Set<number>,
+): boolean {
   const rows = db
     .prepare(`
       SELECT metadata, occurred_at FROM user_events
@@ -80,10 +86,11 @@ function fromEvents(
       ORDER BY occurred_at
     `)
     .all(userId, dayStart - IDLE_GAP_MS, dayEnd) as Array<{ metadata: string; occurred_at: number }>;
-  if (rows.length === 0) return;
+  if (rows.length === 0) return false;
 
   const ms = emptyMinutes();
   const productiveMsByHour = new Array<number>(24).fill(0);
+  let credited = false;
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
     const next = rows[i + 1]?.occurred_at ?? dayEnd;
@@ -97,21 +104,27 @@ function fromEvents(
     const category = typeof m["category"] === "string" ? m["category"] : null;
     const app = typeof m["app"] === "string" ? m["app"] : null;
     const grp: MinuteGroup = isLockApp(cfg, app) ? "idle" : groupOf(cfg, category);
-    ms[grp] += to - from;
-    if (grp === "productive") {
-      // Split across clock-hour boundaries.
-      for (let t = from; t < to; ) {
-        const d = new Date(t);
-        const hourEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime();
-        const end = Math.min(to, hourEnd);
-        productiveMsByHour[d.getHours()] = (productiveMsByHour[d.getHours()] ?? 0) + (end - t);
-        t = end;
+    // Walk the segment minute by minute (it is at most IDLE_GAP_MS long),
+    // skipping minutes the live tracker already judged.
+    for (let t = from; t < to; ) {
+      const minute = Math.floor(t / MINUTE_MS) * MINUTE_MS;
+      const end = Math.min(to, minute + MINUTE_MS);
+      if (!covered.has(minute)) {
+        ms[grp] += end - t;
+        if (grp === "productive") {
+          const h = new Date(t).getHours();
+          productiveMsByHour[h] = (productiveMsByHour[h] ?? 0) + (end - t);
+        }
+        credited = true;
       }
+      t = end;
     }
   }
-  for (const g of Object.keys(ms) as MinuteGroup[]) stats.minutes[g] = Math.round(ms[g] / MINUTE_MS);
-  stats.productiveByHour = productiveMsByHour.map((v) => Math.round(v / MINUTE_MS));
-  stats.source = "events";
+  for (const g of Object.keys(ms) as MinuteGroup[]) stats.minutes[g] += Math.round(ms[g] / MINUTE_MS);
+  productiveMsByHour.forEach((v, h) => {
+    stats.productiveByHour[h] = (stats.productiveByHour[h] ?? 0) + Math.round(v / MINUTE_MS);
+  });
+  return credited;
 }
 
 export function statsForDay(db: Database.Database, cfg: GuardianConfig, userId: string, dayStart: number): DayStats {
@@ -125,7 +138,9 @@ export function statsForDay(db: Database.Database, cfg: GuardianConfig, userId: 
     active: 0,
     productiveByHour: new Array<number>(24).fill(0),
   };
-  if (!fromMinutes(db, dayStart, dayEnd, stats)) fromEvents(db, cfg, userId, dayStart, dayEnd, stats);
+  const covered = fromMinutes(db, dayStart, dayEnd, stats);
+  const usedEvents = fromEvents(db, cfg, userId, dayStart, dayEnd, stats, covered);
+  stats.source = covered.size > 0 ? (usedEvents ? "mixed" : "minutes") : usedEvents ? "events" : "none";
   stats.active = (Object.keys(stats.minutes) as MinuteGroup[])
     .filter((g) => g !== "idle")
     .reduce((sum, g) => sum + stats.minutes[g], 0);
