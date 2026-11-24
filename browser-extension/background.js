@@ -46,11 +46,16 @@ function signature(r) {
   return `${r.url}|${r.title}|${r.active}|${r.audible}`;
 }
 
+async function getToken() {
+  const { token } = await chrome.storage.local.get({ token: '' });
+  return token;
+}
+
 async function post(body) {
   try {
     await fetch(ENDPOINT, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Pattern-Bridge-Token': await getToken() },
       body:    JSON.stringify(body),
     });
   } catch {

@@ -1,17 +1,22 @@
 import http from "http";
 import os from "os";
+import { config } from "../../config/config.js";
 import { logEvents, type EventInput } from "./log-event.js";
 import { classify } from "./classifier.js";
+import { extensionOrigin, isExtensionRequest, TOKEN_HEADER, warnIfNoToken } from "../security/extension-auth.js";
 
-const DEFAULT_PORT = 7701;
+const DEFAULT_PORT = config.extension.collectPort;
 const USER_ID = os.hostname();
 
 let server: http.Server | null = null;
 
 function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // Only our own extension may report tabs. Any web page in the browser could
+  // otherwise POST fake "entertainment" tabs here and trigger interventions.
+  const origin = extensionOrigin();
+  if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", `Content-Type, ${TOKEN_HEADER}`);
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
@@ -22,6 +27,12 @@ function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): voi
   if (req.method !== "POST" || req.url !== "/collect") {
     res.writeHead(404);
     res.end();
+    return;
+  }
+
+  const auth = isExtensionRequest(req.headers.origin, req.headers[TOKEN_HEADER.toLowerCase()]);
+  if (!auth.ok) {
+    reply(res, auth.status, { ok: false, error: auth.error });
     return;
   }
 
@@ -117,6 +128,7 @@ function toTabEvent(event: string, t: Record<string, unknown>): EventInput | nul
 export function startBrowserMonitor(port = DEFAULT_PORT): void {
   if (server) return;
 
+  warnIfNoToken("browser-monitor");
   server = http.createServer(handleRequest);
   server.listen(port, "127.0.0.1", () => {
     console.log(`[browser-monitor] listening on http://127.0.0.1:${port}/collect`);

@@ -11,6 +11,27 @@ chrome.storage.local.get(
   }
 );
 
+// ── Connection token (EXTENSION_TOKEN in .env) ──────────────────────────────
+const tokenInput = document.getElementById('tokenInput');
+const tokenState = document.getElementById('tokenState');
+
+chrome.storage.local.get({ token: '' }, ({ token }) => renderTokenState(token));
+
+document.getElementById('tokenSave').addEventListener('click', () => {
+  const token = tokenInput.value.trim();
+  chrome.storage.local.set({ token }, () => {
+    tokenInput.value = '';
+    renderTokenState(token);
+    // Let the background reconnect with the new token.
+    chrome.runtime.sendMessage({ type: 'token_changed' }).catch(() => {});
+  });
+});
+
+function renderTokenState(token) {
+  tokenState.textContent = token ? '토큰 저장됨' : '토큰 없음 — .env의 EXTENSION_TOKEN 값을 넣어 주세요';
+  tokenState.style.color = token ? '#16a34a' : '#dc2626';
+}
+
 // ── Toggle handler ──────────────────────────────────────────────────────────
 toggle.addEventListener('change', () => {
   const enabled = toggle.checked;
