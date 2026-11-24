@@ -5,6 +5,7 @@ import { dayTypeOf } from "./history.js";
 import { isExercise } from "./groups.js";
 import { activeInterventions, latestExecuted, recordExecuted, type Intervention } from "./interventions.js";
 import { cancel, startIntervention } from "./manager.js";
+import { notify } from "./messenger.js";
 import { MINUTE_MS } from "./minute.js";
 import { isPaused } from "./pause.js";
 import { getState, setState } from "./state.js";
@@ -29,14 +30,14 @@ export async function evaluateR1(ctx: Context, now: number): Promise<void> {
   // Re-opened entertainment shortly after R1 closed it: short grace.
   const last = latestExecuted("R1");
   if (last?.executedAt && now - last.executedAt < r1.reopenWindowMinutes * MINUTE_MS) {
-    await startIntervention("R1", { reopen: true, streakMinutes: ctx.streakMinutes, previous: last.id }, r1.reopenGraceSeconds * 1000, now);
+    notify(await startIntervention("R1", { reopen: true, streakMinutes: ctx.streakMinutes, previous: last.id }, r1.reopenGraceSeconds * 1000, now), now);
     return;
   }
 
   const night = inHourRange(new Date(now).getHours(), r1.nightStartHour, r1.nightEndHour);
   const threshold = night ? r1.nightMinutes : r1.dayMinutes;
   if (ctx.streakMinutes < threshold) return;
-  await startIntervention("R1", { streakMinutes: ctx.streakMinutes, threshold, night }, r1.graceSeconds * 1000, now);
+  notify(await startIntervention("R1", { streakMinutes: ctx.streakMinutes, threshold, night }, r1.graceSeconds * 1000, now), now);
 }
 
 /**
@@ -68,12 +69,13 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   const active = activeInterventions();
   if (active.some((it) => it.rule === "R2")) return;
   for (const it of active) if (it.rule === "R1") await cancel(it, "superseded_by_R2");
-  await startIntervention(
+  const it = await startIntervention(
     "R2",
     { hour, target, threshold, productive: ctx.today.productive, dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days },
     r2.graceSeconds * 1000,
     now,
   );
+  notify(it, now);
 }
 
 type R3State = { dayStart: number; lastSentAt: number; count: number };
@@ -101,6 +103,7 @@ export async function evaluateR3(ctx: Context, now: number): Promise<Interventio
   setState("r3", { dayStart: ctx.dayStart, lastSentAt: now, count } satisfies R3State, now);
   const it = recordExecuted("R3", { consumptionMinutes: ctx.today.consumption, count, current: ctx.current?.grp ?? null }, "message", {}, now);
   console.log(`[R3] #${it.id} suggestion ${count} (consumption ${ctx.today.consumption}m)`);
+  notify(it, now);
   return it;
 }
 
