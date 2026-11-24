@@ -65,6 +65,7 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   if (ctx.today.productive >= threshold) return;
   const grp = ctx.current?.grp;
   if (!grp || grp === "productive" || grp === "idle") return;
+  if (isExercise(cfg, ctx.current?.category)) return; // never interrupt a workout
 
   const active = activeInterventions();
   if (active.some((it) => it.rule === "R2")) return;
