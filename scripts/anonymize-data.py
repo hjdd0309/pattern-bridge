@@ -2,10 +2,13 @@
 
 Keeps what the pattern engine reads (action, occurred_at, metadata.app) and
 replaces personal text with an activity category:
-  - category        <- derived from app / domain / title (config/categories.json)
+  - category        <- derived from app / domain / title (config/categories.json),
+                       unless the event already has one (the collector assigns
+                       it when recording, and the guardian later removes old
+                       titles, so recomputing would lose information)
   - subcategory     <- e.g. shortform, video, game (when a rule sets one)
   - title           -> removed
-  - url             -> domain only
+  - url             -> domain only (a bare domain is kept as is)
   - path            -> removed (ext is kept)
 
 Usage: python scripts/anonymize-data.py [src] [dst]
@@ -32,7 +35,14 @@ RULES = [
 FALLBACK = rule_file.get("fallback", "other")
 
 # Only these actions describe what the user is doing on screen.
-CATEGORIZED_ACTIONS = {"window_focus", "browser_url", "browser_visit"}
+CATEGORIZED_ACTIONS = {"window_focus", "browser_url", "browser_visit", "browser_tab"}
+
+
+def host_of(url):
+    url = str(url)
+    if "://" not in url:
+        return url  # already a bare domain (e.g. after the guardian's retention cleanup)
+    return urlparse(url).hostname or ""
 
 
 def categorize(app, domain, title):
@@ -59,8 +69,8 @@ for row_id, action, raw in rows:
     title = meta.pop("title", None)
     meta.pop("path", None)
     if "url" in meta:
-        meta["url"] = urlparse(str(meta["url"])).hostname or ""
-    if action in CATEGORIZED_ACTIONS:
+        meta["url"] = host_of(meta["url"])
+    if action in CATEGORIZED_ACTIONS and "category" not in meta:
         category, sub = categorize(meta.get("app"), meta.get("url"), title)
         meta["category"] = category
         if sub:

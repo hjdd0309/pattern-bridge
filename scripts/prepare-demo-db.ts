@@ -13,7 +13,10 @@
  * The source file is never modified: it is copied to a temp file first, since
  * even a read-only open of a WAL database leaves -shm/-wal files next to it.
  *
- * Usage: npm run demo-db [-- --src <dataset.sqlite>] [-- --force]
+ * A sparse tail (a few days after a long gap) is dropped first so the most
+ * recent month is dense; --keep-tail disables that.
+ *
+ * Usage: npm run demo-db [-- --src <dataset.sqlite>] [-- --force] [-- --keep-tail]
  */
 import fs from "fs";
 import os from "os";
@@ -48,17 +51,53 @@ if (force) {
 const tmp = path.join(os.tmpdir(), `pb-demo-src-${Date.now()}.sqlite`);
 fs.copyFileSync(src, tmp);
 
+type SourceRow = { action: string; metadata: string; occurred_at: number };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TAIL_GAP_DAYS = 7;
+const TAIL_MAX_DAYS = 3;
+
+/**
+ * Drops a sparse tail: when the data ends with a few active days that come
+ * after a gap of more than TAIL_GAP_DAYS, those days would land in "the last
+ * month" with an empty stretch in front of them and starve the R2 baseline.
+ * (The anonymized dataset has a 15-day gap before its last day, 2026-10-07.)
+ */
+function trimSparseTail(rows: SourceRow[]): { rows: SourceRow[]; dropped: number; cutoff: number | null } {
+  const dayOf = (t: number): number => {
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const days = [...new Set(rows.map((r) => dayOf(r.occurred_at)))].sort((a, b) => a - b);
+  for (let i = days.length - 1; i > 0; i--) {
+    if (days[i]! - days[i - 1]! > TAIL_GAP_DAYS * DAY_MS) {
+      const tailDays = days.length - i;
+      if (tailDays > TAIL_MAX_DAYS) break;
+      const cutoff = days[i]!;
+      const kept = rows.filter((r) => r.occurred_at < cutoff);
+      return { rows: kept, dropped: rows.length - kept.length, cutoff };
+    }
+  }
+  return { rows, dropped: 0, cutoff: null };
+}
+
 try {
   const source = new Database(tmp, { readonly: true });
-  const { newest } = source.prepare("SELECT MAX(occurred_at) AS newest FROM user_events").get() as { newest: number | null };
-  if (newest === null) throw new Error("source has no user_events");
+  const all = source
+    .prepare("SELECT action, metadata, occurred_at FROM user_events ORDER BY occurred_at")
+    .all() as SourceRow[];
+  source.close();
+  if (all.length === 0) throw new Error("source has no user_events");
 
+  const trimmed = process.argv.includes("--keep-tail") ? { rows: all, dropped: 0, cutoff: null } : trimSparseTail(all);
+  const rows = trimmed.rows;
+  const newest = rows[rows.length - 1]!.occurred_at;
   const shift = Math.floor((Date.now() - newest) / WEEK_MS) * WEEK_MS;
   const userId = os.hostname();
-  const rows = source
-    .prepare("SELECT action, metadata, occurred_at FROM user_events ORDER BY occurred_at")
-    .all() as Array<{ action: string; metadata: string; occurred_at: number }>;
-  source.close();
+  if (trimmed.cutoff !== null) {
+    const d = new Date(trimmed.cutoff);
+    console.log(`dropped ${trimmed.dropped} events from ${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()} on (sparse tail after a ${TAIL_GAP_DAYS}+ day gap; --keep-tail to keep)`);
+  }
 
   const db = getDb(); // creates dst with the current schema
   const insert = db.prepare("INSERT INTO user_events (user_id, action, metadata, occurred_at) VALUES (?, ?, ?, ?)");
