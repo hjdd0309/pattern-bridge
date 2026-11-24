@@ -88,6 +88,9 @@
     /* ── Sections (token, pause) ── */
     .section { margin: 0 16px 14px; }
     .token-row { display: flex; gap: 6px; }
+    .token-row select {
+      flex: 1; min-width: 0; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px;
+    }
     .token-row input {
       flex: 1; min-width: 0; padding: 6px 8px;
       border: 1px solid #ddd; border-radius: 6px; font-size: 12px;
@@ -128,6 +131,21 @@
 <div class="activity">
   <div class="activity-label">마지막 전송</div>
   <div id="activityContent" class="no-activity">아직 전송 없음</div>
+</div>
+
+<div class="section">
+  <div class="activity-label">개입 일시 정지</div>
+  <div id="pauseState" class="toggle-sub" style="margin-bottom:6px">확인 중…</div>
+  <div class="token-row">
+    <select id="pausePreset">
+      <option value="30m">30분</option>
+      <option value="1h">1시간</option>
+      <option value="today">오늘(새벽 5시까지)</option>
+      <option value="manual">직접 켤 때까지</option>
+    </select>
+    <button id="pauseBtn">정지</button>
+    <button id="resumeBtn" class="secondary">다시 켜기</button>
+  </div>
 </div>
 
 <div class="section">

@@ -273,6 +273,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     // Banner button: ask the guardian to run the intervention right away.
     sendCmd(ws, { type: 'close_now', interventionId: msg.interventionId });
   }
+  if (msg && msg.type === 'guardian' && ['pause', 'resume', 'status'].includes(msg.action)) {
+    // Popup → guardian (pause / resume / status); answer asynchronously.
+    const payload = msg.action === 'pause' ? { preset: msg.preset } : {};
+    guardianRequest(msg.action, payload).then(
+      (reply) => sendResponse(reply),
+      () => sendResponse({ ok: false }),
+    );
+    return true;
+  }
   return false;
 });
 

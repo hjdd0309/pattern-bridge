@@ -1,8 +1,9 @@
 import type Database from "better-sqlite3";
 import type { GuardianConfig } from "./config.js";
 import { getBaseline, isBaselineDay, recentDays } from "./baseline.js";
-import type { DayStats } from "./history.js";
+import { shiftDays, type DayStats } from "./history.js";
 import { MINUTE_MS } from "./minute.js";
+import { pauseStats } from "./pause.js";
 
 // Work done once per guardian day (at 05:00, and once at start-up):
 // daily_summary rows, the new R2 baseline, and retention cleanup.
@@ -86,7 +87,10 @@ export function applyRetention(db: Database.Database, cfg: GuardianConfig, now: 
 /** Summaries for the recent days, today's baseline, and retention. */
 export function onNewDay(db: Database.Database, cfg: GuardianConfig, userId: string, todayStart: number, now: number): void {
   for (const s of recentDays(db, cfg, userId, todayStart)) {
-    if (s.source !== "none") writeDailySummary(db, s, isBaselineDay(cfg, s), now);
+    if (s.source === "none") continue;
+    writeDailySummary(db, s, isBaselineDay(cfg, s), now);
+    const p = pauseStats(s.dayStart, shiftDays(s.dayStart, 1));
+    db.prepare("UPDATE daily_summary SET pause_count = ?, pause_minutes = ? WHERE day = ?").run(p.count, p.minutes, s.day);
   }
   getBaseline(db, cfg, userId, todayStart, now);
   const r = applyRetention(db, cfg, now);

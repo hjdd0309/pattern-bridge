@@ -19,7 +19,7 @@ import {
   type Rule,
 } from "./interventions.js";
 import { dominantForeground, MINUTE_MS } from "./minute.js";
-import { isPaused } from "./pause.js";
+import { isPaused, pauseStatus, resume, setPause, type PausePreset } from "./pause.js";
 import { collectorAliveFor, USER_ID } from "./tracker.js";
 
 // Runs decided interventions through their grace period, every few seconds:
@@ -157,10 +157,26 @@ export async function closeNow(id: number, now: number): Promise<boolean> {
   return true;
 }
 
+const PRESETS: readonly PausePreset[] = ["30m", "1h", "today", "manual"];
+
 export function registerExtensionHandlers(): void {
   onExtensionMessage("close_now", async (msg) => {
     if (typeof msg["interventionId"] === "number") await closeNow(msg["interventionId"], Date.now());
   });
+  // Popup "pause interventions": fixed presets only.
+  onExtensionMessage("pause", async (msg) => {
+    const preset = msg["preset"];
+    if (typeof preset !== "string" || !PRESETS.includes(preset as PausePreset)) throw new Error("unknown preset");
+    const now = Date.now();
+    setPause(preset as PausePreset, "extension", now);
+    await step(now); // cancel running interventions right away
+    return pauseStatus(now);
+  });
+  onExtensionMessage("resume", () => {
+    resume("extension");
+    return pauseStatus(Date.now());
+  });
+  onExtensionMessage("status", () => pauseStatus(Date.now()));
 }
 
 /** Records the activity group 10 minutes after each executed intervention. */
