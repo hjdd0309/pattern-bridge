@@ -28,19 +28,19 @@ export function buildMessage(it: Intervention): string {
   const lines = ["[바른생활지킴이]"];
   if (it.rule === "R1") {
     if (p["reopen"]) {
-      lines.push("상황: 방금 유흥 탭을 정리했는데 10분이 지나기 전에 다시 유흥 콘텐츠를 열었습니다.");
+      lines.push("상황: 방금 오락 탭을 정리했는데 10분이 지나기 전에 다시 오락 콘텐츠를 열었습니다.");
     } else {
-      lines.push(`상황: 유흥 콘텐츠를 ${minutesText(Number(p["streakMinutes"] ?? 0))}째 연속으로 보고 있습니다${p["night"] ? " (지금은 심야 시간대)" : ""}.`);
+      lines.push(`상황: 오락 콘텐츠를 ${minutesText(Number(p["streakMinutes"] ?? 0))}째 연속으로 보고 있습니다${p["night"] ? " (지금은 심야 시간대)" : ""}.`);
     }
-    lines.push(`예정 동작: ${grace}초 뒤 유흥 탭을 정리합니다. 화면에도 카운트다운이 표시됩니다.`);
+    lines.push(`예정 동작: ${grace}초 뒤 오락 탭을 정리합니다. 화면에도 카운트다운이 표시됩니다.`);
     lines.push("사용자에게 정리 예정임을 알리고 잠깐 쉬어 가자고 권해 주세요.");
   } else if (it.rule === "R2") {
     lines.push(`상황: 오늘 공부·작업 시간이 ${minutesText(Number(p["productive"] ?? 0))}으로, 평소 이 시각(${String(p["hour"])}시)까지의 ${minutesText(Number(p["target"] ?? 0))}보다 많이 부족합니다.`);
-    lines.push(`예정 동작: ${grace}초 뒤 생산 모드를 켭니다 (유흥 탭 정리, 창 최소화, 평소 쓰던 작업 창 열기).`);
+    lines.push(`예정 동작: ${grace}초 뒤 생산 모드를 켭니다 (오락 탭 정리, 창 최소화, 평소 쓰던 작업 창 열기).`);
     lines.push("사용자를 다그치지 말고 지금 시작해 보자고 독려해 주세요.");
   } else {
     const count = Number(p["count"] ?? 1);
-    lines.push(`상황: 오늘 유흥·여가 콘텐츠를 ${minutesText(Number(p["consumptionMinutes"] ?? 0))} 이용했습니다${count > 1 ? ` (${count}번째 안내)` : ""}.`);
+    lines.push(`상황: 오늘 오락·여가 콘텐츠를 ${minutesText(Number(p["consumptionMinutes"] ?? 0))} 이용했습니다${count > 1 ? ` (${count}번째 안내)` : ""}.`);
     lines.push("동작: 창은 건드리지 않습니다. 제안만 합니다.");
     lines.push("잠깐 쉬거나 다른 활동(스트레칭, 산책, 할 일 정리 등)을 가볍게 제안해 주세요.");
   }
