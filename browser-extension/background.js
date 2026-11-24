@@ -1,3 +1,6 @@
+// Command channel from the guardian (close tabs, banner, ...).
+importScripts('commands.js');
+
 // ── Config ─────────────────────────────────────────────────────────────────
 const ENDPOINT = 'http://127.0.0.1:7701/collect';
 

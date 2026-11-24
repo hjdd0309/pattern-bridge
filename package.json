@@ -40,13 +40,15 @@
     "node-cron": "^4.2.1",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "uiohook-napi": "^1.5.5"
+    "uiohook-napi": "^1.5.5",
+    "ws": "^8.23.0"
   },
   "devDependencies": {
     "@types/axios": "^0.9.36",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.9.1",
     "@types/node-cron": "^3.0.11",
+    "@types/ws": "^8.18.2",
     "electron": "^36.9.5",
     "tsx": "^4.22.3"
   }

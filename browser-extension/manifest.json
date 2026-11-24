@@ -6,10 +6,12 @@
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyoGzraTnZBc+IGdrVysGIj7Nrv1KX/nzMT/vIpVIw5ixeDahSfNrBnmKvMCDlw6ymuybg+bdIxmWw55PiX0E7bXPdekPZBjkOukMWNr9mh1mwWOD3CX35uULLNinjhlVxKZe4K9k8Q2SfNfzmniJtRzWppORfUAJAGMdjqSouERJoX3GqToCUt29snuCGSmwoDTwFax+M469PZfOMxaaNi/p/cRYUo7RgrVS4HfTwXX031o7esac5tS6JlibshSKohLz/h6PIaZqDWGgC5CxkVeax8XU1i5ERCLmqAfnDGqOfnyKmCAohfmcA52BkRyG1q8S7xwnz2JWeIXhouqwQQIDAQAB",
   "permissions": [
     "tabs",
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
-    "http://127.0.0.1:7701/*"
+    "http://127.0.0.1:7701/*",
+    "http://127.0.0.1:7702/*"
   ],
   "background": {
     "service_worker": "background.js"
