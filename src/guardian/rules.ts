@@ -2,7 +2,8 @@ import { getDb } from "../db/schema.js";
 import { getBaseline } from "./baseline.js";
 import { getConfig } from "./config.js";
 import { dayTypeOf } from "./history.js";
-import { activeInterventions, latestExecuted } from "./interventions.js";
+import { isExercise } from "./groups.js";
+import { activeInterventions, latestExecuted, recordExecuted, type Intervention } from "./interventions.js";
 import { cancel, startIntervention } from "./manager.js";
 import { MINUTE_MS } from "./minute.js";
 import { isPaused } from "./pause.js";
@@ -75,8 +76,37 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   );
 }
 
+type R3State = { dayStart: number; lastSentAt: number; count: number };
+
+/**
+ * R3: suggestion only. When today's entertainment + leisure (without
+ * exercise) reaches thresholdMinutes, send a suggestion right away; after
+ * that, every repeatMinutes, send again only if the user is consuming at that
+ * moment. Never touches windows.
+ */
+export async function evaluateR3(ctx: Context, now: number): Promise<Intervention | null> {
+  const cfg = getConfig();
+  const r3 = cfg.rules.R3;
+  if (ctx.today.consumption < r3.thresholdMinutes) return null;
+
+  const state = getState<R3State>("r3");
+  const first = !state || state.dayStart !== ctx.dayStart;
+  if (!first) {
+    if (now - state.lastSentAt < r3.repeatMinutes * MINUTE_MS) return null;
+    const cur = ctx.current;
+    const consuming = cur?.grp === "entertainment" || (cur?.grp === "leisure" && !isExercise(cfg, cur.category));
+    if (!consuming) return null;
+  }
+  const count = first ? 1 : state.count + 1;
+  setState("r3", { dayStart: ctx.dayStart, lastSentAt: now, count } satisfies R3State, now);
+  const it = recordExecuted("R3", { consumptionMinutes: ctx.today.consumption, count, current: ctx.current?.grp ?? null }, "message", {}, now);
+  console.log(`[R3] #${it.id} suggestion ${count} (consumption ${ctx.today.consumption}m)`);
+  return it;
+}
+
 export async function evaluateRules(ctx: Context, now: number): Promise<void> {
   if (isPaused(now)) return;
   await evaluateR2(ctx, now); // R2 first: it outranks R1
   await evaluateR1(ctx, now);
+  await evaluateR3(ctx, now);
 }
