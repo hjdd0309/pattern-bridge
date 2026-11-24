@@ -1,8 +1,11 @@
 // Guardian process: the intervention (judgment) layer. It never collects
 // anything itself; it reads what the collector wrote to SQLite, judges the
 // user's context once a minute, and acts on it.
+import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
-import { trackUpTo, type Context } from "./tracker.js";
+import { onNewDay } from "./daily.js";
+import { getState, setState } from "./state.js";
+import { dayStartOf, trackUpTo, USER_ID, type Context } from "./tracker.js";
 
 const TICK_MS = 60_000;
 // Judge each minute a few seconds after it ends, so the collector has flushed it.
@@ -31,8 +34,20 @@ function describe(c: Context): string {
   return `now=${cur} streak=${c.streakMinutes}m today: productive=${c.today.productive}m consumption=${c.today.consumption}m idle=${c.today.idle}m`;
 }
 
+/** Runs the once-per-day work when the guardian day (05:00 start) has changed. */
+function ensureDay(dayStart: number): void {
+  if (getState<number>("dayStart") === dayStart) return;
+  onNewDay(getDb(), getConfig(), USER_ID, dayStart, Date.now());
+  setState("dayStart", dayStart);
+}
+
 async function tick(minuteStart: number): Promise<void> {
   let context: Context;
+  try {
+    ensureDay(dayStartOf(getConfig(), minuteStart + 60_000 - 1));
+  } catch (err) {
+    console.error("[guardian] daily work failed:", err instanceof Error ? err.message : err);
+  }
   try {
     context = trackUpTo(getConfig(), minuteStart);
   } catch (err) {
@@ -70,6 +85,11 @@ export function startGuardian(): void {
   console.log(`[guardian] started (demo=${cfg.demo.enabled}, day starts ${cfg.day.startHour}:00)`);
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
+  try {
+    ensureDay(dayStartOf(cfg, Date.now()));
+  } catch (err) {
+    console.error("[guardian] daily work failed:", err instanceof Error ? err.message : err);
+  }
   scheduleNext();
 }
 
