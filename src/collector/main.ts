@@ -4,13 +4,15 @@
 import { startWindowMonitor } from "./window-monitor.js";
 import { startBrowserMonitor } from "./browser-monitor.js";
 import { startFileMonitor } from "./file-monitor.js";
-import { startKeyboardMonitor } from "./keyboard-monitor.js";
+import { startInputMonitor } from "./input-monitor.js";
+import { startHeartbeat } from "./heartbeat.js";
 import { calcAppTime, formatDuration } from "./app-time.js";
 
+startHeartbeat();
 startWindowMonitor();
 startBrowserMonitor();
 startFileMonitor();
-startKeyboardMonitor();
+startInputMonitor();
 
 // 시작 시 어제부터 지금까지 앱 사용시간 요약 출력
 const stats = calcAppTime();
