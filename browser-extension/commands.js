@@ -99,7 +99,115 @@ async function listTabs() {
     }));
 }
 
+// ── Countdown banner (runs inside the page, isolated world) ────────────────
+// These two functions are injected with chrome.scripting and must be
+// self-contained. The banner lives in a closed shadow root so page styles
+// cannot touch it, and it only ever talks back via chrome.runtime.
+
+function pbShowBanner(interventionId, seconds, text) {
+  const ID = 'pattern-bridge-banner';
+  if (window.__pbBannerTimer) clearInterval(window.__pbBannerTimer);
+  document.getElementById(ID)?.remove();
+
+  const host = document.createElement('div');
+  host.id = ID;
+  host.style.cssText = 'all:initial;position:fixed;top:16px;right:16px;z-index:2147483647;';
+  const root = host.attachShadow({ mode: 'closed' });
+  root.innerHTML = `
+    <style>
+      .b { font-family: -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif; width: 280px;
+           background: #1e1b4b; color: #fff; border-radius: 12px; padding: 14px 16px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+      .h { font-size: 12px; opacity: .75; margin-bottom: 6px; }
+      .t { font-size: 14px; line-height: 1.45; }
+      .c { font-size: 26px; font-weight: 700; margin: 8px 0 10px; font-variant-numeric: tabular-nums; }
+      button { all: unset; cursor: pointer; background: #4f46e5; color: #fff; border-radius: 8px;
+               padding: 7px 12px; font-size: 13px; }
+      button:hover { background: #6366f1; }
+    </style>
+    <div class="b">
+      <div class="h">바른생활지킴이</div>
+      <div class="t"></div>
+      <div class="c"></div>
+      <button type="button">지금 닫기</button>
+    </div>`;
+  root.querySelector('.t').textContent = text;
+  const counter = root.querySelector('.c');
+  const deadline = Date.now() + seconds * 1000;
+  const render = () => {
+    const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+    counter.textContent = left > 0
+      ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`
+      : '정리 중…';
+  };
+  render();
+  window.__pbBannerTimer = setInterval(render, 1000);
+  root.querySelector('button').addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'close_now', interventionId });
+  });
+  document.documentElement.appendChild(host);
+}
+
+function pbHideBanner() {
+  if (window.__pbBannerTimer) clearInterval(window.__pbBannerTimer);
+  document.getElementById('pattern-bridge-banner')?.remove();
+}
+
+const bannerTabs = new Map(); // interventionId → tabIds showing its banner
+
+async function chromeIsFocused() {
+  try {
+    const w = await chrome.windows.getLastFocused();
+    return w.focused === true;
+  } catch {
+    return false;
+  }
+}
+
+function desktopNotify(title, message) {
+  chrome.notifications.create(`pb-${Date.now()}`, {
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title,
+    message,
+    priority: 2,
+  });
+}
+
 const commandHandlers = {
+  async show_banner({ interventionId, tabIds, seconds, text }) {
+    const shown = [];
+    for (const tabId of Array.isArray(tabIds) ? tabIds : []) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: pbShowBanner,
+          args: [interventionId, Number(seconds) || 0, String(text || '')],
+        });
+        shown.push(tabId);
+      } catch { /* chrome:// pages, closed tabs, ... */ }
+    }
+    bannerTabs.set(interventionId, shown);
+    // The banner is invisible when Chrome is not in front: also notify.
+    if (!(await chromeIsFocused())) desktopNotify('바른생활지킴이', String(text || ''));
+    return { shown: shown.length };
+  },
+
+  async hide_banner({ interventionId }) {
+    for (const tabId of bannerTabs.get(interventionId) ?? []) {
+      try {
+        await chrome.scripting.executeScript({ target: { tabId }, func: pbHideBanner });
+      } catch { /* tab already closed */ }
+    }
+    bannerTabs.delete(interventionId);
+    return {};
+  },
+
+  async notify({ title, message }) {
+    desktopNotify(String(title || '바른생활지킴이'), String(message || ''));
+    return {};
+  },
+
   async get_tabs() {
     return { tabs: await listTabs() };
   },
@@ -152,6 +260,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg && msg.type === 'token_changed') {
     if (ws) ws.close();
     connectCommands();
+  }
+  if (msg && msg.type === 'close_now' && typeof msg.interventionId === 'number') {
+    // Banner button: ask the guardian to run the intervention right away.
+    sendCmd(ws, { type: 'close_now', interventionId: msg.interventionId });
   }
   return false;
 });
