@@ -1,22 +1,25 @@
 import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
 import { getExecutor } from "./executor.js";
+import { onExtensionMessage } from "./extension-link.js";
 import { groupOf, isLockApp, type MinuteGroup } from "./groups.js";
 import {
   activeInterventions,
   cancelIntervention,
   createIntervention,
+  expediteIntervention,
   markExecuted,
   outcomesDue,
   pauseIntervention,
   resumeIntervention,
   setOutcome,
+  updatePlan,
   type Intervention,
   type Plan,
   type Rule,
 } from "./interventions.js";
 import { dominantForeground, MINUTE_MS } from "./minute.js";
-import { isPaused } from "./pause.js";
+import { isPaused, pauseStatus, resume, setPause, type PausePreset } from "./pause.js";
 import { collectorAliveFor, USER_ID } from "./tracker.js";
 
 // Runs decided interventions through their grace period, every few seconds:
@@ -80,8 +83,18 @@ export async function recover(now: number): Promise<void> {
   }
 }
 
-/** One pass over active interventions. */
-export async function step(now: number): Promise<void> {
+// Steps are serialized: the timer loop and a banner "close now" must never run
+// the same deadline twice.
+let stepChain: Promise<void> = Promise.resolve();
+
+/** One pass over active interventions (queued behind any pass in progress). */
+export function step(now: number): Promise<void> {
+  const run = stepChain.then(() => doStep(now));
+  stepChain = run.catch(() => {});
+  return run;
+}
+
+async function doStep(now: number): Promise<void> {
   const cfg = getConfig();
   const db = getDb();
   const slept = lastStepAt !== null && now - lastStepAt > SLEEP_GAP_MS;
@@ -130,6 +143,40 @@ export async function step(now: number): Promise<void> {
     }
     if (deadlinePassed) await execute(it, now);
   }
+}
+
+/**
+ * The user pressed "close now" on a banner: run the intervention right away
+ * instead of waiting out the grace period.
+ */
+export async function closeNow(id: number, now: number): Promise<boolean> {
+  if (!expediteIntervention(id, now)) return false;
+  updatePlan(id, { closedNowAt: now });
+  console.log(`[intervention] #${id} close-now requested from banner`);
+  await step(now);
+  return true;
+}
+
+const PRESETS: readonly PausePreset[] = ["30m", "1h", "today", "manual"];
+
+export function registerExtensionHandlers(): void {
+  onExtensionMessage("close_now", async (msg) => {
+    if (typeof msg["interventionId"] === "number") await closeNow(msg["interventionId"], Date.now());
+  });
+  // Popup "pause interventions": fixed presets only.
+  onExtensionMessage("pause", async (msg) => {
+    const preset = msg["preset"];
+    if (typeof preset !== "string" || !PRESETS.includes(preset as PausePreset)) throw new Error("unknown preset");
+    const now = Date.now();
+    setPause(preset as PausePreset, "extension", now);
+    await step(now); // cancel running interventions right away
+    return pauseStatus(now);
+  });
+  onExtensionMessage("resume", () => {
+    resume("extension");
+    return pauseStatus(Date.now());
+  });
+  onExtensionMessage("status", () => pauseStatus(Date.now()));
 }
 
 /** Records the activity group 10 minutes after each executed intervention. */

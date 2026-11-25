@@ -5,7 +5,7 @@ import { logEvent } from "./log-event.js";
 
 const USER_ID = os.hostname();
 
-const DEFAULT_PATHS = [
+export const DEFAULT_PATHS = [
   path.join(os.homedir(), "Desktop"),
   path.join(os.homedir(), "Documents"),
   path.join(os.homedir(), "Downloads"),

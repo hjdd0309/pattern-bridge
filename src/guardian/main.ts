@@ -4,8 +4,13 @@
 import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
 import { onNewDay } from "./daily.js";
-import { recordOutcomes, recover, step, STEP_MS } from "./manager.js";
+import { setExecutor } from "./executor.js";
+import { startExtensionLink } from "./extension-link.js";
+import { RealExecutor } from "./real-executor.js";
+import { recordOutcomes, recover, registerExtensionHandlers, step, STEP_MS } from "./manager.js";
 import { evaluateRules } from "./rules.js";
+import { notifyResumed } from "./messenger.js";
+import { expireIfDue } from "./pause.js";
 import { getState, setState } from "./state.js";
 import { dayStartOf, trackUpTo, USER_ID, type Context } from "./tracker.js";
 
@@ -57,6 +62,11 @@ async function tick(minuteStart: number): Promise<void> {
   }
   console.log(`[guardian] ${describe(context)}`);
   try {
+    if (expireIfDue(Date.now())) notifyResumed();
+  } catch (err) {
+    console.error("[guardian] pause check failed:", err instanceof Error ? err.message : err);
+  }
+  try {
     await evaluateRules(context, Date.now());
   } catch (err) {
     console.error("[guardian] rule evaluation failed:", err instanceof Error ? err.message : err);
@@ -103,6 +113,9 @@ export function startGuardian(): void {
   } catch (err) {
     console.error("[guardian] daily work failed:", err instanceof Error ? err.message : err);
   }
+  startExtensionLink();
+  setExecutor(new RealExecutor());
+  registerExtensionHandlers();
   recover(Date.now())
     .catch((err: unknown) => console.error("[guardian] recovery failed:", err instanceof Error ? err.message : err))
     .finally(startStepLoop);

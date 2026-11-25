@@ -78,8 +78,10 @@ function validate(cfg: GuardianConfig): void {
 export function loadConfig(file = CONFIG_PATH): GuardianConfig {
   const raw = stripComments(JSON.parse(fs.readFileSync(file, "utf8"))) as Record<string, unknown>;
   const demo = isObject(raw["demo"]) ? raw["demo"] : {};
-  const merged = demo["enabled"] === true && isObject(demo["overrides"])
-    ? deepMerge(raw, demo["overrides"])
+  // GUARDIAN_DEMO=1 turns demo mode on without editing the tracked config file.
+  const demoOn = demo["enabled"] === true || process.env["GUARDIAN_DEMO"] === "1";
+  const merged = demoOn && isObject(demo["overrides"])
+    ? deepMerge({ ...raw, demo: { ...demo, enabled: true } }, demo["overrides"])
     : raw;
   const cfg = merged as unknown as GuardianConfig;
   validate(cfg);

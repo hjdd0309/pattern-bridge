@@ -11,6 +11,61 @@ chrome.storage.local.get(
   }
 );
 
+// ── Connection token (EXTENSION_TOKEN in .env) ──────────────────────────────
+const tokenInput = document.getElementById('tokenInput');
+const tokenState = document.getElementById('tokenState');
+
+chrome.storage.local.get({ token: '' }, ({ token }) => renderTokenState(token));
+
+document.getElementById('tokenSave').addEventListener('click', () => {
+  const token = tokenInput.value.trim();
+  chrome.storage.local.set({ token }, () => {
+    tokenInput.value = '';
+    renderTokenState(token);
+    // Let the background reconnect with the new token.
+    chrome.runtime.sendMessage({ type: 'token_changed' }).catch(() => {});
+  });
+});
+
+function renderTokenState(token) {
+  tokenState.textContent = token ? '토큰 저장됨' : '토큰 없음 — .env의 EXTENSION_TOKEN 값을 넣어 주세요';
+  tokenState.style.color = token ? '#16a34a' : '#dc2626';
+}
+
+// ── Pause interventions (sent to the guardian through the background) ───────
+const pauseState = document.getElementById('pauseState');
+
+function guardian(action, extra = {}) {
+  return chrome.runtime.sendMessage({ type: 'guardian', action, ...extra });
+}
+
+function renderPause(res) {
+  if (!res || !res.ok) {
+    pauseState.textContent = 'guardian에 연결되지 않음';
+    pauseState.style.color = '#dc2626';
+    return;
+  }
+  if (!res.paused) {
+    pauseState.textContent = '개입 동작 중';
+    pauseState.style.color = '#16a34a';
+    return;
+  }
+  const until = res.until ? new Date(res.until).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '직접 켤 때까지';
+  pauseState.textContent = `일시 정지 중 (${until})`;
+  pauseState.style.color = '#d97706';
+}
+
+guardian('status').then(renderPause, () => renderPause(null));
+
+document.getElementById('pauseBtn').addEventListener('click', () => {
+  const preset = document.getElementById('pausePreset').value;
+  guardian('pause', { preset }).then(renderPause, () => renderPause(null));
+});
+
+document.getElementById('resumeBtn').addEventListener('click', () => {
+  guardian('resume').then(renderPause, () => renderPause(null));
+});
+
 // ── Toggle handler ──────────────────────────────────────────────────────────
 toggle.addEventListener('change', () => {
   const enabled = toggle.checked;

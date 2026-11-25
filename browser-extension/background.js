@@ -1,3 +1,6 @@
+// Command channel from the guardian (close tabs, banner, ...).
+importScripts('commands.js');
+
 // ── Config ─────────────────────────────────────────────────────────────────
 const ENDPOINT = 'http://127.0.0.1:7701/collect';
 
@@ -46,12 +49,17 @@ function signature(r) {
   return `${r.url}|${r.title}|${r.active}|${r.audible}`;
 }
 
+async function getToken() {
+  const { token } = await chrome.storage.local.get({ token: '' });
+  return token;
+}
+
 async function post(body) {
   try {
     await fetch(ENDPOINT, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json', 'X-Pattern-Bridge-Token': await getToken() },
+      body:    JSON.stringify({ ...body, browser: BROWSER_NAME }),
     });
   } catch {
     // Collector offline — the next change or snapshot catches up.

@@ -80,3 +80,20 @@ export function notify(it: Intervention, now = Date.now()): void {
     console.log(`[messenger] #${it.id} ${it.rule}: ${status}`);
   });
 }
+
+/** Tells the user that a pause ran out and interventions are back on. */
+export function notifyResumed(now = Date.now()): void {
+  const r = reserve(now);
+  if (!r.ok) {
+    console.log(`[messenger] resume notice: ${r.reason}`);
+    return;
+  }
+  const text = [
+    "[바른생활지킴이]",
+    "상황: 사용자가 걸어 둔 개입 일시 정지 시간이 끝나 개입을 다시 시작했습니다.",
+    "사용자에게 한국어로 한 문장만 짧게 알려 주세요.",
+  ].join("\n");
+  void sendAgentMessage(text)
+    .then((res) => console.log(`[messenger] resume notice: ${res.ok ? "sent" : "skipped_not_configured"}`))
+    .catch((err: unknown) => console.error(`[messenger] resume notice failed: ${err instanceof Error ? err.message : String(err)}`));
+}

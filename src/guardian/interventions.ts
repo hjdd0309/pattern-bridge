@@ -121,6 +121,16 @@ export function resumeIntervention(id: number, now: number): void {
     .run(now, id);
 }
 
+/** Moves the deadline to `now` (banner "close now"); a paused one becomes pending again. */
+export function expediteIntervention(id: number, now: number): boolean {
+  return getDb()
+    .prepare(`
+      UPDATE interventions SET status = 'pending', grace_until = ?, paused_remaining = NULL
+      WHERE id = ? AND status IN ('pending', 'paused')
+    `)
+    .run(now, id).changes > 0;
+}
+
 export function updatePlan(id: number, patch: Partial<Plan>): void {
   const it = getIntervention(id);
   if (!it) return;

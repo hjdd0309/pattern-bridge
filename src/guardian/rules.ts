@@ -8,7 +8,8 @@ import { cancel, startIntervention } from "./manager.js";
 import { notify } from "./messenger.js";
 import { MINUTE_MS } from "./minute.js";
 import { isPaused } from "./pause.js";
-import { getState, setState } from "./state.js";
+import { deleteState, getState, setState } from "./state.js";
+import { computeWorkspace } from "./workspace.js";
 import { USER_ID, type Context } from "./tracker.js";
 
 // Rules, evaluated once per minute on the fresh context. A rule only decides;
@@ -49,11 +50,15 @@ export async function evaluateR1(ctx: Context, now: number): Promise<void> {
 export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   const cfg = getConfig();
   const r2 = cfg.rules.R2;
-  if (new Date(ctx.at).getMinutes() !== 0) return; // on the hour only
-  if (getState<number>("r2DoneDay") === ctx.dayStart) return;
+  // Demo aid (npm run guardian:trigger -- R2 [--force]): check now instead of on the hour.
+  const trigger = getState<{ force: boolean }>("triggerR2");
+  if (trigger) deleteState("triggerR2");
+  const forced = !!trigger && cfg.demo.enabled;
+  if (!forced && new Date(ctx.at).getMinutes() !== 0) return; // on the hour only
+  if (!forced && getState<number>("r2DoneDay") === ctx.dayStart) return;
 
   const set = getBaseline(getDb(), cfg, USER_ID, ctx.dayStart, now)[dayTypeOf(ctx.dayStart)];
-  if (ctx.today.productive >= r2.enoughRatio * set.dailyMedian) {
+  if (!trigger?.force && ctx.today.productive >= r2.enoughRatio * set.dailyMedian) {
     setState("r2DoneDay", ctx.dayStart, now);
     console.log(`[R2] enough for today (${ctx.today.productive}m ≥ ${r2.enoughRatio} × ${set.dailyMedian}m)`);
     return;
@@ -62,7 +67,7 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   const hour = new Date(ctx.at).getHours();
   const target = set.cumulativeAt[String(hour)] ?? 0;
   const threshold = r2.deficitRatio * target;
-  if (ctx.today.productive >= threshold) return;
+  if (!(forced && trigger?.force) && ctx.today.productive >= threshold) return;
   const grp = ctx.current?.grp;
   if (!grp || grp === "productive" || grp === "idle") return;
   if (isExercise(cfg, ctx.current?.category)) return; // never interrupt a workout
@@ -72,7 +77,11 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   for (const it of active) if (it.rule === "R1") await cancel(it, "superseded_by_R2");
   const it = await startIntervention(
     "R2",
-    { hour, target, threshold, productive: ctx.today.productive, dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days },
+    {
+      hour, target, threshold, productive: ctx.today.productive, dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days,
+      // Decided now and kept in the plan: the agent only ever sees the intervention ID.
+      workspace: computeWorkspace(getDb(), cfg, USER_ID, now),
+    },
     r2.graceSeconds * 1000,
     now,
   );
