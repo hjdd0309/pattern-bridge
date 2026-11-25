@@ -101,6 +101,26 @@ export function activeInterventions(): Intervention[] {
  * user stayed away until the deadline), with the time it ended. Re-warnings
  * (plan.rewarn) are skipped: they never start a rest period of their own.
  */
+/**
+ * The latest R2 that starts a cooldown: focus mode ran (or failed to), or the
+ * user started working during grace. Cancels for other reasons (pause, sleep,
+ * collector down) do not count.
+ */
+export function latestEndedR2(): { it: Intervention; endedAt: number } | null {
+  const r = getDb()
+    .prepare(`
+      SELECT * FROM interventions
+      WHERE rule = 'R2'
+        AND (status = 'executed'
+             OR (status = 'cancelled' AND cancel_reason IN ('user_started_productive', 'execution_failed')))
+      ORDER BY decided_at DESC LIMIT 1
+    `)
+    .get() as Row | undefined;
+  if (!r) return null;
+  const it = toIntervention(r);
+  return { it, endedAt: it.executedAt ?? it.graceUntil ?? it.decidedAt };
+}
+
 export function latestEndedR1(): { it: Intervention; endedAt: number } | null {
   const r = getDb()
     .prepare(`

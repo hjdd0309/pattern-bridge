@@ -1,9 +1,9 @@
 import { getDb } from "../db/schema.js";
-import { getBaseline } from "./baseline.js";
+import { getBaseline, usualBy } from "./baseline.js";
 import { getConfig } from "./config.js";
 import { dayTypeOf } from "./history.js";
 import { isExercise } from "./groups.js";
-import { activeInterventions, hasRewarning, latestEndedR1, recordExecuted, type Intervention } from "./interventions.js";
+import { activeInterventions, hasRewarning, latestEndedR1, latestEndedR2, recordExecuted, type Intervention } from "./interventions.js";
 import { cancel, startIntervention } from "./manager.js";
 import { notify } from "./messenger.js";
 import { MINUTE_MS } from "./minute.js";
@@ -52,43 +52,54 @@ export async function evaluateR1(ctx: Context, now: number): Promise<void> {
 }
 
 /**
- * R2: checked on the hour. If today's productive time is below deficitRatio of
- * the usual cumulative amount by this hour (same day type), and the user is
- * not working right now, start focus mode after a grace period. Once today's
+ * R2: checked every minute. If today's productive time is below deficitRatio
+ * of the usual amount by this time (same day type, interpolated within the
+ * hour), and the user is not working right now, start focus mode after a
+ * grace period. After an R2 ends it rests for cooldownMinutes. Once today's
  * total reaches enoughRatio of the usual daily total, R2 is done for the day.
+ *
+ * Demo aid (npm run guardian:trigger -- R2 [--force]): the next minute logs
+ * why R2 did or did not fire; with --force it fires regardless of productive
+ * time, the cooldown and what the user is doing (except exercising).
  */
 export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   const cfg = getConfig();
   const r2 = cfg.rules.R2;
-  // Demo aid (npm run guardian:trigger -- R2 [--force]): check now instead of on the hour.
-  const trigger = getState<{ force: boolean }>("triggerR2");
+  const trigger = cfg.demo.enabled ? getState<{ force: boolean }>("triggerR2") : null;
   if (trigger) deleteState("triggerR2");
-  const forced = !!trigger && cfg.demo.enabled;
-  if (!forced && new Date(ctx.at).getMinutes() !== 0) return; // on the hour only
-  if (!forced && getState<number>("r2DoneDay") === ctx.dayStart) return;
+  const force = !!trigger?.force;
+  const skip = (why: string): void => {
+    if (trigger) console.log(`[R2] skipped (${why})`);
+  };
+
+  if (activeInterventions().some((it) => it.rule === "R2")) return skip("R2 already running");
+  if (isExercise(cfg, ctx.current?.category)) return skip("exercising"); // never interrupt a workout
+  if (!force) {
+    if (getState<number>("r2DoneDay") === ctx.dayStart) return skip("enough productive time today");
+    const last = latestEndedR2();
+    if (last && now - last.endedAt < r2.cooldownMinutes * MINUTE_MS) return skip("cooldown after the last R2");
+    const grp = ctx.current?.grp;
+    if (!grp || grp === "productive" || grp === "idle") return skip(`now ${grp ?? "unknown"}`);
+  }
 
   const set = getBaseline(getDb(), cfg, USER_ID, ctx.dayStart, now)[dayTypeOf(ctx.dayStart)];
-  if (!trigger?.force && ctx.today.productive >= r2.enoughRatio * set.dailyMedian) {
+  if (!force && ctx.today.productive >= r2.enoughRatio * set.dailyMedian) {
     setState("r2DoneDay", ctx.dayStart, now);
     console.log(`[R2] enough for today (${ctx.today.productive}m ≥ ${r2.enoughRatio} × ${set.dailyMedian}m)`);
     return;
   }
 
-  const hour = new Date(ctx.at).getHours();
-  const target = set.cumulativeAt[String(hour)] ?? 0;
+  const target = Math.round(usualBy(set, cfg.day.startHour, ctx.at));
   const threshold = r2.deficitRatio * target;
-  if (!(forced && trigger?.force) && ctx.today.productive >= threshold) return;
-  const grp = ctx.current?.grp;
-  if (!grp || grp === "productive" || grp === "idle") return;
-  if (isExercise(cfg, ctx.current?.category)) return; // never interrupt a workout
+  if (!force && ctx.today.productive >= threshold) return skip(`productive ${ctx.today.productive}m ≥ ${threshold}m`);
 
-  const active = activeInterventions();
-  if (active.some((it) => it.rule === "R2")) return;
-  for (const it of active) if (it.rule === "R1") await cancel(it, "superseded_by_R2");
+  for (const it of activeInterventions()) if (it.rule === "R1") await cancel(it, "superseded_by_R2");
+  const at = new Date(ctx.at);
   const it = await startIntervention(
     "R2",
     {
-      hour, target, threshold, productive: ctx.today.productive, dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days,
+      hour: at.getHours(), minute: at.getMinutes(), target, threshold, productive: ctx.today.productive,
+      dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days, ...(force ? { forced: true } : {}),
       // Decided now and kept in the plan: the agent only ever sees the intervention ID.
       workspace: computeWorkspace(getDb(), cfg, USER_ID, now),
     },

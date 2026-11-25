@@ -23,7 +23,7 @@ export type GuardianConfig = {
       graceSeconds: number; reopenWindowMinutes: number; reopenGraceSeconds: number;
     };
     R2: {
-      deficitRatio: number; enoughRatio: number; graceSeconds: number;
+      deficitRatio: number; enoughRatio: number; graceSeconds: number; cooldownMinutes: number;
       baselineDays: number; minActiveMinutesPerDay: number;
     };
     R3: { thresholdMinutes: number; repeatMinutes: number };
