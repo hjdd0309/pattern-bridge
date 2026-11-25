@@ -40,6 +40,7 @@
 
   "rules": {
     "R1": {
+      "_comment": "After an R1 ends (closed, or cancelled because the user stayed away until the deadline) R1 rests for reopenWindowMinutes; returning to entertainment meanwhile gets one banner-only re-warning with reopenGraceSeconds.",
       "dayMinutes": 40,
       "nightMinutes": 20,
       "nightStartHour": 0,

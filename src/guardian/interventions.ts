@@ -96,11 +96,32 @@ export function activeInterventions(): Intervention[] {
     .all() as Row[]).map(toIntervention);
 }
 
-export function latestExecuted(rule: Rule): Intervention | null {
+/**
+ * The latest regular R1 that has ended (tabs closed, or cancelled because the
+ * user stayed away until the deadline), with the time it ended. Re-warnings
+ * (plan.rewarn) are skipped: they never start a rest period of their own.
+ */
+export function latestEndedR1(): { it: Intervention; endedAt: number } | null {
   const r = getDb()
-    .prepare("SELECT * FROM interventions WHERE rule = ? AND status = 'executed' ORDER BY executed_at DESC LIMIT 1")
-    .get(rule) as Row | undefined;
-  return r ? toIntervention(r) : null;
+    .prepare(`
+      SELECT * FROM interventions
+      WHERE rule = 'R1' AND json_extract(plan, '$.rewarn') IS NULL
+        AND (status = 'executed' OR (status = 'cancelled' AND cancel_reason = 'user_left'))
+      ORDER BY decided_at DESC LIMIT 1
+    `)
+    .get() as Row | undefined;
+  if (!r) return null;
+  const it = toIntervention(r);
+  // A user_left cancel happens at the original deadline (plan.cancelAt).
+  const endedAt = it.executedAt ?? it.plan.cancelAt ?? it.graceUntil ?? it.decidedAt;
+  return { it, endedAt };
+}
+
+/** True when a re-warning was already given for this R1. */
+export function hasRewarning(previousId: number): boolean {
+  return !!getDb()
+    .prepare("SELECT 1 FROM interventions WHERE rule = 'R1' AND json_extract(plan, '$.previous') = ? LIMIT 1")
+    .get(previousId);
 }
 
 export function pauseIntervention(id: number, now: number): void {

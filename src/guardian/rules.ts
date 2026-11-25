@@ -3,7 +3,7 @@ import { getBaseline } from "./baseline.js";
 import { getConfig } from "./config.js";
 import { dayTypeOf } from "./history.js";
 import { isExercise } from "./groups.js";
-import { activeInterventions, latestExecuted, recordExecuted, type Intervention } from "./interventions.js";
+import { activeInterventions, hasRewarning, latestEndedR1, recordExecuted, type Intervention } from "./interventions.js";
 import { cancel, startIntervention } from "./manager.js";
 import { notify } from "./messenger.js";
 import { MINUTE_MS } from "./minute.js";
@@ -28,13 +28,20 @@ export async function evaluateR1(ctx: Context, now: number): Promise<void> {
   if (ctx.current?.grp !== "entertainment") return;
   if (activeInterventions().some((it) => it.rule === "R1" || it.rule === "R2")) return;
 
-  // Re-opened entertainment shortly after R1 closed it: short grace.
-  // The minute that contains the closing still shows the entertainment from
-  // before it, so only minutes that started after the closing count.
-  const last = latestExecuted("R1");
-  if (last?.executedAt && now - last.executedAt < r1.reopenWindowMinutes * MINUTE_MS) {
-    if ((ctx.current?.minuteStart ?? 0) < last.executedAt) return;
-    notify(await startIntervention("R1", { reopen: true, streakMinutes: ctx.streakMinutes, previous: last.id }, r1.reopenGraceSeconds * 1000, now), now);
+  // After an R1 ends (tabs closed, or cancelled because the user stayed away
+  // until the deadline), R1 rests for reopenWindowMinutes. Coming back to
+  // entertainment during the rest gets exactly one short re-warning (banner
+  // only: the first R1 already sent a message); after that, nothing until the
+  // rest is over. The streak is not reset, so a regular R1 follows if the
+  // user is still on entertainment then.
+  const last = latestEndedR1();
+  if (last && now - last.endedAt < r1.reopenWindowMinutes * MINUTE_MS) {
+    // The minute that contains the end still shows the entertainment from
+    // before it, so only minutes that started after the end count.
+    if ((ctx.current?.minuteStart ?? 0) < last.endedAt) return;
+    if (hasRewarning(last.it.id)) return;
+    const previousEnd = last.it.status === "executed" ? "executed" : "user_left";
+    await startIntervention("R1", { rewarn: true, previous: last.it.id, previousEnd, streakMinutes: ctx.streakMinutes }, r1.reopenGraceSeconds * 1000, now);
     return;
   }
 
