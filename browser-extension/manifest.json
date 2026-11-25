@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Pattern Bridge",
-  "version": "1.2.0",
-  "description": "열려 있는 탭의 URL·제목과 탭 전환을 로컬 Pattern Bridge 서버로 전송합니다",
+  "version": "1.3.0",
+  "description": "크롬 계열 브라우저(Chrome, Edge, Whale 등)의 탭 정보를 로컬 Pattern Bridge로 보내고, 개입 명령을 실행합니다",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyoGzraTnZBc+IGdrVysGIj7Nrv1KX/nzMT/vIpVIw5ixeDahSfNrBnmKvMCDlw6ymuybg+bdIxmWw55PiX0E7bXPdekPZBjkOukMWNr9mh1mwWOD3CX35uULLNinjhlVxKZe4K9k8Q2SfNfzmniJtRzWppORfUAJAGMdjqSouERJoX3GqToCUt29snuCGSmwoDTwFax+M469PZfOMxaaNi/p/cRYUo7RgrVS4HfTwXX031o7esac5tS6JlibshSKohLz/h6PIaZqDWGgC5CxkVeax8XU1i5ERCLmqAfnDGqOfnyKmCAohfmcA52BkRyG1q8S7xwnz2JWeIXhouqwQQIDAQAB",
   "icons": {
     "128": "icons/icon128.png"

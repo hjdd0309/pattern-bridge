@@ -19,8 +19,20 @@ export function isWatching(cfg: GuardianConfig, subcategory: string | null | und
   return audible || (!!subcategory && cfg.groups.watchingSubcategories.includes(subcategory));
 }
 
-export function isChromeApp(app: string | null | undefined): boolean {
-  return !!app && /chrome/i.test(app);
+/**
+ * Chromium-based browser behind a window's app name, as the extension names
+ * itself (see browser-extension/background.js), or null for other apps.
+ * Order matters: Edge, Whale, Brave and Opera also contain "chrome" in some names.
+ */
+export function browserOfApp(app: string | null | undefined): string | null {
+  if (!app) return null;
+  if (/edge/i.test(app)) return "edge";
+  if (/whale/i.test(app)) return "whale";
+  if (/brave/i.test(app)) return "brave";
+  if (/opera/i.test(app)) return "opera";
+  if (/vivaldi/i.test(app)) return "vivaldi";
+  if (/chrome|chromium/i.test(app)) return "chrome";
+  return null;
 }
 
 export function isLockApp(cfg: GuardianConfig, app: string | null | undefined): boolean {

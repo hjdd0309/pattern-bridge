@@ -58,7 +58,7 @@ export class RealExecutor implements Executor {
     const targets = it.rule === "R1"
       ? tabs.filter(isEntertainment)
       : tabs.filter((t) => t.active && t.focusedWindow).concat(tabs.filter((t) => t.active && !t.focusedWindow)).slice(0, 1);
-    await link.showBanner(it.id, targets.map((t) => t.tabId), secondsLeft, bannerText(it));
+    await link.showBanner(it.id, targets, secondsLeft, bannerText(it));
   }
 
   async hideBanner(it: Intervention): Promise<void> {
@@ -70,7 +70,7 @@ export class RealExecutor implements Executor {
     if (!link.isConnected()) return { ok: false, detail: { error: "extension_not_connected" } };
     try {
       const tabs = await link.getTabs();
-      const closed = await link.closeTabs(tabs.filter(isEntertainment).map((t) => t.tabId));
+      const closed = await link.closeTabs(tabs.filter(isEntertainment));
       if (it.rule !== "R2") return { ok: true, detail: { closed } };
 
       // Focus mode: clear the screen, then bring up the usual workspace.
@@ -86,7 +86,9 @@ export class RealExecutor implements Executor {
           console.warn("[executor] open file failed:", err instanceof Error ? err.message : String(err));
         }
       }
-      const urlsOpened = await link.openUrls(ws.urls ?? []);
+      // Open them in the browser the user was in (its window is focused), else any.
+      const inFront = tabs.find((t) => t.focusedWindow)?.browser;
+      const urlsOpened = await link.openUrls(ws.urls ?? [], inFront);
       return { ok: true, detail: { closed, minimized: true, filesOpened, urlsOpened } };
     } catch (err) {
       return { ok: false, detail: { error: err instanceof Error ? err.message : String(err) } };

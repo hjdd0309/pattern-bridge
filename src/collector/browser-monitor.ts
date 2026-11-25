@@ -32,6 +32,7 @@ function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): voi
 
   const auth = isExtensionRequest(req.headers.origin, req.headers[TOKEN_HEADER.toLowerCase()]);
   if (!auth.ok) {
+    logRejected(req.headers.origin, auth.error);
     reply(res, auth.status, { ok: false, error: auth.error });
     return;
   }
@@ -48,12 +49,13 @@ function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): voi
     }
 
     const event = str(parsed["event"]) || "updated";
+    const browser = browserName(parsed["browser"]);
     const events: EventInput[] = [];
 
     if (event === "snapshot") {
       const tabs = Array.isArray(parsed["tabs"]) ? parsed["tabs"] : [];
       for (const t of tabs) {
-        const e = toTabEvent("snapshot", t as Record<string, unknown>);
+        const e = toTabEvent("snapshot", t as Record<string, unknown>, browser);
         if (e) events.push(e);
       }
     } else if (event === "removed") {
@@ -65,10 +67,10 @@ function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): voi
       events.push({
         userId: USER_ID,
         action: "browser_tab",
-        metadata: { event, tabId, windowId: num(parsed["windowId"]) },
+        metadata: { event, browser, tabId, windowId: num(parsed["windowId"]) },
       });
     } else {
-      const e = toTabEvent(event, parsed);
+      const e = toTabEvent(event, parsed, browser);
       if (!e) {
         reply(res, 400, { ok: false, error: "url required" });
         return;
@@ -79,12 +81,30 @@ function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): voi
     if (events.length > 0) logEvents(events);
     if (event !== "snapshot") {
       const m = events[0]?.metadata ?? {};
-      console.log(`[browser-monitor] ${event} tab=${String(m["tabId"])} ${String(m["category"] ?? "")} ${String(m["url"] ?? "")}`);
+      console.log(`[browser-monitor] ${browser} ${event} tab=${String(m["tabId"])} ${String(m["category"] ?? "")} ${String(m["url"] ?? "")}`);
     } else {
-      console.log(`[browser-monitor] snapshot: ${events.length} tab(s)`);
+      console.log(`[browser-monitor] ${browser} snapshot: ${events.length} tab(s)`);
     }
     reply(res, 200, { ok: true });
   });
+}
+
+/** Browser that sent the report (chrome, edge, whale, ...). Reports from older extension versions have none. */
+function browserName(v: unknown): string {
+  return typeof v === "string" && /^[a-z]{2,12}$/.test(v) ? v : "chrome";
+}
+
+// Rejections are logged (rate-limited) so a missing/wrong token is easy to spot.
+// The token itself is never logged.
+let lastRejectLog = 0;
+function logRejected(origin: string | undefined, reason: string): void {
+  const now = Date.now();
+  if (now - lastRejectLog < 10_000) return;
+  lastRejectLog = now;
+  const hint = reason === "bad token"
+    ? " — enter .env EXTENSION_TOKEN in the extension popup"
+    : " — remove and reload the extension (its ID is pinned by manifest key)";
+  console.warn(`[browser-monitor] rejected report from ${origin ?? "(no origin)"}: ${reason}${hint}`);
 }
 
 function reply(res: http.ServerResponse, status: number, body: object): void {
@@ -105,7 +125,7 @@ function num(v: unknown): number | null {
  * URL and title only: passing the app name ("Google Chrome") would make
  * unknown sites fall into the browser rule (search) instead of `other`.
  */
-function toTabEvent(event: string, t: Record<string, unknown>): EventInput | null {
+function toTabEvent(event: string, t: Record<string, unknown>, browser: string): EventInput | null {
   const url = str(t["url"]);
   if (!url) return null;
   const title = str(t["title"]);
@@ -114,6 +134,7 @@ function toTabEvent(event: string, t: Record<string, unknown>): EventInput | nul
     action: "browser_tab",
     metadata: {
       event,
+      browser,
       tabId: num(t["tabId"]),
       windowId: num(t["windowId"]),
       url,

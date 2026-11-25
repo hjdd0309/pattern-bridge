@@ -1,12 +1,14 @@
 import type Database from "better-sqlite3";
 import type { GuardianConfig } from "./config.js";
-import { groupOf, isChromeApp, isLockApp, isWatching, type MinuteGroup } from "./groups.js";
+import { browserOfApp, groupOf, isLockApp, isWatching, type MinuteGroup } from "./groups.js";
 
 // Decides what one minute was "mostly" spent on.
 //
-// The foreground is the active window (window_focus). When that window is
-// Chrome, the active tab of the focused Chrome window (browser_tab) is used
-// instead, because the tab carries the URL. Within the minute, whichever
+// The foreground is the active window (window_focus). When that window is a
+// Chromium browser with our extension (Chrome, Edge, Whale, ...), the active
+// tab of that browser's focused window (browser_tab) is used instead, because
+// the tab carries the URL. Each browser numbers its windows and tabs on its
+// own, so tab state is kept per browser. Within the minute, whichever
 // foreground was in front the longest wins. The minute is idle when the
 // screen is locked, the collector is down, or there was no keyboard/mouse
 // input for idle.noInputMinutes while nothing was being watched.
@@ -60,9 +62,10 @@ function num(v: unknown): number | null {
 /** Replays window_focus / browser_tab events and reports the foreground at each change. */
 class ForegroundTracker {
   private window: Foreground | null = null;
-  private readonly tabs = new Map<number, Tab>();
-  private readonly activeTab = new Map<number, number>(); // windowId → tabId
-  private focusedWindow: number | null = null;
+  // All keyed by browser + browser-local id ("edge:12").
+  private readonly tabs = new Map<string, Tab>();
+  private readonly activeTab = new Map<string, string>(); // window key → tab key
+  private readonly focusedWindow = new Map<string, string>(); // browser → window key
 
   apply(row: Row): void {
     let m: Record<string, unknown>;
@@ -83,37 +86,40 @@ class ForegroundTracker {
     }
     if (row.action !== "browser_tab") return;
 
+    const browser = str(m["browser"]) ?? "chrome"; // reports from before multi-browser support
     const event = str(m["event"]) ?? "updated";
     const rawTabId = num(m["tabId"]);
-    const tabId = rawTabId ?? -1; // reports from an old extension version carry no tabId
-    const windowId = num(m["windowId"]) ?? -1;
+    const tabKey = `${browser}:${rawTabId ?? -1}`; // very old extension versions carry no tabId
+    const windowKey = `${browser}:${num(m["windowId"]) ?? -1}`;
 
     if (event === "removed") {
-      this.tabs.delete(tabId);
-      if (this.activeTab.get(windowId) === tabId) this.activeTab.delete(windowId);
+      this.tabs.delete(tabKey);
+      if (this.activeTab.get(windowKey) === tabKey) this.activeTab.delete(windowKey);
       return;
     }
     const url = str(m["url"]);
     if (!url) return;
-    this.tabs.set(tabId, {
-      windowId,
+    this.tabs.set(tabKey, {
+      windowId: num(m["windowId"]) ?? -1,
       url,
       category: str(m["category"]),
       subcategory: str(m["subcategory"]),
       audible: m["audible"] === true,
     });
     const active = m["active"] === true || rawTabId === null;
-    if (active) this.activeTab.set(windowId, tabId);
-    if (event === "activated" || event === "focused" || rawTabId === null) this.focusedWindow = windowId;
-    else if (this.focusedWindow === null && active) this.focusedWindow = windowId;
+    if (active) this.activeTab.set(windowKey, tabKey);
+    if (event === "activated" || event === "focused" || rawTabId === null) this.focusedWindow.set(browser, windowKey);
+    else if (!this.focusedWindow.has(browser) && active) this.focusedWindow.set(browser, windowKey);
   }
 
   current(): Foreground | null {
     const w = this.window;
     if (!w) return null;
-    if (isChromeApp(w.app) && this.focusedWindow !== null) {
-      const tabId = this.activeTab.get(this.focusedWindow);
-      const tab = tabId === undefined ? undefined : this.tabs.get(tabId);
+    const browser = browserOfApp(w.app);
+    const windowKey = browser ? this.focusedWindow.get(browser) : undefined;
+    if (windowKey) {
+      const tabKey = this.activeTab.get(windowKey);
+      const tab = tabKey === undefined ? undefined : this.tabs.get(tabKey);
       if (tab) {
         return {
           app: w.app,

@@ -6,6 +6,19 @@
 // Page content is never read or sent anywhere.
 
 const COMMAND_URL = 'ws://127.0.0.1:7702';
+
+// Which Chromium browser this copy of the extension runs in. Tab and window ids
+// are only unique within one browser, so every report and the hello carry it.
+function detectBrowser() {
+  const ua = (self.navigator && navigator.userAgent) || '';
+  if (self.navigator && navigator.brave) return 'brave';
+  if (/Edg\//.test(ua)) return 'edge';
+  if (/Whale\//.test(ua)) return 'whale';
+  if (/OPR\//.test(ua)) return 'opera';
+  if (/Vivaldi/.test(ua)) return 'vivaldi';
+  return 'chrome';
+}
+const BROWSER_NAME = detectBrowser();
 const KEEPALIVE_MS = 20_000;   // WebSocket traffic keeps the MV3 service worker alive
 const MAX_BACKOFF_MS = 60_000;
 
@@ -38,7 +51,7 @@ async function connectCommands() {
   ws = sock;
   sock.onopen = () => {
     backoff = 2_000;
-    sendCmd(sock, { type: 'hello', token });
+    sendCmd(sock, { type: 'hello', token, browser: BROWSER_NAME });
     clearInterval(keepaliveTimer);
     keepaliveTimer = setInterval(() => sendCmd(sock, { type: 'ping' }), KEEPALIVE_MS);
   };

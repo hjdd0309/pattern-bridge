@@ -59,7 +59,7 @@ async function post(body) {
     await fetch(ENDPOINT, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'X-Pattern-Bridge-Token': await getToken() },
-      body:    JSON.stringify(body),
+      body:    JSON.stringify({ ...body, browser: BROWSER_NAME }),
     });
   } catch {
     // Collector offline — the next change or snapshot catches up.
