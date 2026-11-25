@@ -201,7 +201,11 @@ npm run guardian:dev
   - 정지 중에는 새 개입이 없음
   - 다시 켜면 팝업이 "개입 동작 중", 이후 조건이 되면 다시 개입
 - **확인할 로그**: `[pause] paused by extension ...`, `R1 cancelled: guardian_paused`, `[pause] resumed by extension`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모:
+  - 정지 → `R1 cancelled: guardian_paused` (배너 사라지고 탭 그대로) → 다시 켜기 → 다음 분에 일반 R1 다시 걸림 (정지 취소는 쉬는 기간을 만들지 않음)
+  - 정지한 시간이 1분이 안 돼서 "정지 중 새 개입 없음"은 실제 브라우저로는 못 봄. 정지 단위 테스트로 확인
+  - 발견: 1분 전에 R3 제안이 나가서 R1 메시지가 분당 1회 제한(`minute_cap`)에 걸려 디스코드로 안 감 → `fix/scenario-e`에서 수정
+  - `fix/scenario-e`에서 수정: R1·R2 메시지는 분당 제한을 받지 않음(하루 상한은 그대로). R3 제안과 정지 끝 알림은 제한에 걸리면 버리지 않고 1분이 지날 때까지 기다렸다 보냄
 
 ### F. R2 생산 모드 (수동 실행)
 
@@ -254,7 +258,9 @@ npm run guardian:dev
   - 엣지가 앞일 때 guardian 로그 `now=productive/...`, 크롬이 앞일 때 `now=entertainment/shortform`
   - R1 배너가 두 브라우저의 오락 탭에 뜨고, 실행되면 **양쪽 오락 탭이 모두** 닫힘 (강의 탭은 그대로)
 - **확인할 로그**: collector `[browser-monitor] edge ...` / `chrome ...`, `R1 executed by fallback`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모:
+  - 엣지 PDF가 앞일 때 `now=productive/work`, 크롬 쇼츠가 앞일 때 `now=entertainment/video`
+  - R1 실행 결과 `closed: 3` (크롬 1, 엣지 2), 엣지 PDF 탭은 그대로. E와 같은 R1 사이클에서 확인
 
 ### J. 브라우저로 로컬 문서 보기
 
@@ -264,8 +270,13 @@ npm run guardian:dev
   - guardian 매분 로그 `now=productive/work`, 오늘 생산 시간이 1분씩 늘어남
   - collector 로그와 DB에는 `file:///local.pdf`처럼 확장자만 남고 폴더·파일 이름은 없음
   - R1 정리 때 문서 탭은 닫히지 않음
-- **확인할 로그**: collector `[browser-monitor] edge activated tab=... work file:///local.pdf`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **확인할 로그**: collector `[browser-monitor] edge activated tab=... work file:///local.pdf`, `[window-monitor] Microsoft Edge — local.pdf`
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모:
+  - 1차(2026-11-25): 탭 기록은 `work file:///local.pdf`로 통과. 하지만 창 감시가 창 제목을 그대로 저장해서 파일 이름이 DB에 남음 (`[window-monitor] Microsoft Edge — <파일 이름>.pdf - ...`)
+  - 같이 발견: 브라우저 밖 앱의 창 제목도 그대로 저장됨 (제목 없는 메모장은 첫 줄, 카카오톡은 대화 상대 이름). 마스킹이 들어가기 전에 저장된 탭 기록에는 `file:///C:/...` 전체 경로가 남아 있음
+  - `fix/scenario-j`에서 수정: 브라우저 밖 앱은 창 제목을 저장하지 않고(분류만 남김), 브라우저가 로컬 문서를 보여 주면 제목을 `local.pdf`처럼 확장자만 남김. 예전 기록은 `npm run redact-titles`로 정리
+  - 수정 후 재확인: `[window-monitor] Microsoft Edge — local.pdf`, 브라우저 밖 앱은 앱 이름만 찍힘. 매분 판정 `now=productive/work`. 예전 기록 정리: 창 제목 1,073건, 로컬 파일 주소 21건
+  - 알려진 한계: PDF 뷰어가 파일 이름 대신 PDF 안의 문서 제목(확장자 없음)을 창 제목으로 쓰면 그 제목은 남음. 창 감시는 앞에 있는 탭이 로컬 파일인지 알 수 없어서 일반 페이지와 구분 못 함
 
 ---
 

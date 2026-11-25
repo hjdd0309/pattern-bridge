@@ -83,6 +83,7 @@
   },
 
   "webhook": {
+    "_comment": "Caps on messages to the agent. R1/R2 skip the per-minute cap (they announce an action about to happen); other messages wait for the minute to pass. The daily cap applies to all.",
     "maxPerMinute": 1,
     "maxPerDay": 40
   },
