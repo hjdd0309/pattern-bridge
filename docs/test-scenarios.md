@@ -265,11 +265,12 @@ npm run guardian:dev
   - collector 로그와 DB에는 `file:///local.pdf`처럼 확장자만 남고 폴더·파일 이름은 없음
   - R1 정리 때 문서 탭은 닫히지 않음
 - **확인할 로그**: collector `[browser-monitor] edge activated tab=... work file:///local.pdf`, `[window-monitor] Microsoft Edge — local.pdf`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모:
   - 1차(2026-11-25): 탭 기록은 `work file:///local.pdf`로 통과. 하지만 창 감시가 창 제목을 그대로 저장해서 파일 이름이 DB에 남음 (`[window-monitor] Microsoft Edge — <파일 이름>.pdf - ...`)
   - 같이 발견: 브라우저 밖 앱의 창 제목도 그대로 저장됨 (제목 없는 메모장은 첫 줄, 카카오톡은 대화 상대 이름). 마스킹이 들어가기 전에 저장된 탭 기록에는 `file:///C:/...` 전체 경로가 남아 있음
   - `fix/scenario-j`에서 수정: 브라우저 밖 앱은 창 제목을 저장하지 않고(분류만 남김), 브라우저가 로컬 문서를 보여 주면 제목을 `local.pdf`처럼 확장자만 남김. 예전 기록은 `npm run redact-titles`로 정리
-  - 수정 후 재확인 필요
+  - 수정 후 재확인: `[window-monitor] Microsoft Edge — local.pdf`, 브라우저 밖 앱은 앱 이름만 찍힘. 매분 판정 `now=productive/work`. 예전 기록 정리: 창 제목 1,073건, 로컬 파일 주소 21건
+  - 알려진 한계: PDF 뷰어가 파일 이름 대신 PDF 안의 문서 제목(확장자 없음)을 창 제목으로 쓰면 그 제목은 남음. 창 감시는 앞에 있는 탭이 로컬 파일인지 알 수 없어서 일반 페이지와 구분 못 함
 
 ---
 

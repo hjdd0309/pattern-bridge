@@ -66,7 +66,10 @@ title is often personal text (an untitled Notepad note shows its first line,
 KakaoTalk shows the chat partner's name), so it is dropped
 (`src/collector/title-privacy.ts`). A browser showing a local document keeps
 only the extension (`local.pdf`), like a `file://` URL does
-(`file:///local.pdf`). URLs and browser titles are stored locally; they never
+(`file:///local.pdf`). Known limit: when the browser's PDF viewer shows the
+document's own title instead of the file name, that title has no extension
+and is kept, since the window monitor cannot tell which tab is in front.
+URLs and browser titles are stored locally; they never
 leave the SQLite file (§1) and are never included in what is sent to
 OpenClaw (§3). Events recorded before these rules can be brought in line with
 `npm run redact-titles`.
