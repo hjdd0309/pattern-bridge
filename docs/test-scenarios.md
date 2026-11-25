@@ -224,6 +224,17 @@ npm run guardian:dev
 - **확인할 로그**: collector `[browser-monitor] edge ...` / `chrome ...`, `R1 executed by fallback`
 - **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
 
+### J. 브라우저로 로컬 문서 보기
+
+- **목적**: PC의 문서(PDF, 한글, 워드 등)를 브라우저로 볼 때 생산으로 판정하고, 파일 경로는 저장하지 않는지
+- **절차**: 탐색기에서 PDF를 엣지(또는 크롬)로 열고, 그 탭을 앞에 둔 채 2~3분 읽는다
+- **기대 결과**
+  - guardian 매분 로그 `now=productive/work`, 오늘 생산 시간이 1분씩 늘어남
+  - collector 로그와 DB에는 `file:///local.pdf`처럼 확장자만 남고 폴더·파일 이름은 없음
+  - R1 정리 때 문서 탭은 닫히지 않음
+- **확인할 로그**: collector `[browser-monitor] edge activated tab=... work file:///local.pdf`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
 ---
 
 ## 4. 주의 사항
