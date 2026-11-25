@@ -12,7 +12,10 @@ import { getState, setState } from "./state.js";
 // LLM. Sending is fire-and-forget: a failure is logged and recorded on the
 // intervention. Only failures where OpenClaw certainly did not run the agent
 // are retried, once (see isSafeToRetry); a retry storm burned the free quota once.
-// Hard caps (per minute / per day) stop a bug from flooding the agent.
+// Hard caps (per minute / per day) stop a bug from flooding the agent. R1/R2
+// announce an action that is about to happen, so they skip the per-minute cap
+// (their rules already cannot fire twice a minute); other messages that hit it
+// wait for the minute to pass instead of being dropped.
 
 type WebhookLog = { day: string; count: number; lastAt: number };
 
@@ -47,16 +50,34 @@ export function buildMessage(it: Intervention): string {
   return lines.join("\n");
 }
 
+type Reservation = { ok: true } | { ok: false; reason: string; waitMs?: number };
+
 /** Reserves a send under the per-minute and per-day caps; false when over a cap. */
-function reserve(now: number): { ok: true } | { ok: false; reason: string } {
+function reserve(now: number, priority: boolean): Reservation {
   const { maxPerMinute, maxPerDay } = getConfig().webhook;
   const day = dayKey(now);
   const log = getState<WebhookLog>("webhookLog");
   const today = log && log.day === day ? log : { day, count: 0, lastAt: 0 };
   if (today.count >= maxPerDay) return { ok: false, reason: "daily_cap" };
-  if (maxPerMinute <= 1 && now - today.lastAt < 60_000) return { ok: false, reason: "minute_cap" };
-  setState("webhookLog", { day, count: today.count + 1, lastAt: now } satisfies WebhookLog, now);
+  if (!priority && maxPerMinute <= 1 && now - today.lastAt < 60_000) {
+    return { ok: false, reason: "minute_cap", waitMs: today.lastAt + 60_000 - now };
+  }
+  setState("webhookLog", { day, count: today.count + 1, lastAt: Math.max(now, today.lastAt) } satisfies WebhookLog, now);
   return { ok: true };
+}
+
+export const CAP_WAIT_MS = { value: null as number | null }; // tests shorten the real wait
+
+/** Like reserve, but waits out the per-minute cap (a few times) instead of giving up. */
+async function reserveWaiting(now: number, priority: boolean, label: string): Promise<Reservation> {
+  let at = now;
+  for (let attempt = 0; ; attempt++) {
+    const r = reserve(at, priority);
+    if (r.ok || r.reason !== "minute_cap" || attempt >= 3) return r;
+    console.log(`[messenger] ${label}: minute cap, sending in ${Math.ceil(r.waitMs! / 1000)}s`);
+    await new Promise((res) => setTimeout(res, CAP_WAIT_MS.value ?? r.waitMs!));
+    at += r.waitMs!;
+  }
 }
 
 export const RETRY_DELAY_MS = { value: 3_000 }; // object so tests can shorten it
@@ -84,7 +105,7 @@ async function sendOnceRetrying(text: string): Promise<{ ok: boolean }> {
 }
 
 async function send(it: Intervention, now: number): Promise<string> {
-  const r = reserve(now);
+  const r = await reserveWaiting(now, it.rule === "R1" || it.rule === "R2", `#${it.id} ${it.rule}`);
   if (!r.ok) return r.reason;
   try {
     const res = await sendOnceRetrying(buildMessage(it));
@@ -106,11 +127,16 @@ export function notify(it: Intervention, now = Date.now()): void {
 
 /** Tells the user that a pause ran out and interventions are back on. */
 export function notifyResumed(now = Date.now()): void {
-  const r = reserve(now);
-  if (!r.ok) {
-    console.log(`[messenger] resume notice: ${r.reason}`);
-    return;
-  }
+  void reserveWaiting(now, false, "resume notice").then((r) => {
+    if (!r.ok) {
+      console.log(`[messenger] resume notice: ${r.reason}`);
+      return;
+    }
+    sendResumed();
+  });
+}
+
+function sendResumed(): void {
   const text = [
     "[바른생활지킴이]",
     "상황: 사용자가 걸어 둔 개입 일시 정지 시간이 끝나 개입을 다시 시작했습니다.",
