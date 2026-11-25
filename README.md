@@ -2,6 +2,13 @@
 
 > **에이전트를 고치지 않고, 그 앞에서 "지금 나서야 할 때인가"를 판단하는 레이어**
 
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-5FA04E?logo=nodedotjs&logoColor=white)
+![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-MV3-4285F4?logo=googlechrome&logoColor=white)
+![OpenClaw](https://img.shields.io/badge/agent-OpenClaw-FF6B35)
+![Discord](https://img.shields.io/badge/notify-Discord-5865F2?logo=discord&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 지금의 AI 에이전트는 사용자가 말해야 움직입니다. 그런데 새벽까지 쇼츠를 보거나 할 일을 미루는 문제는, 사용자가 스스로 알아차리지 못하거나 알아도 도와 달라고 하지 않는 순간에 생깁니다.
 
 Pattern Bridge는 PC에서 **지금 무엇을, 얼마나** 하고 있는지 보고, 정해진 규칙으로 개입할 때를 판단합니다. 개입이 필요하면 에이전트(OpenClaw)를 깨워 디스코드로 말을 걸게 하고, 화면에서는 오락 탭을 정리하거나 공부할 창을 열어 줍니다.
@@ -251,14 +258,29 @@ python scripts/import-public-pc.py gesis dataset/public/gesis dataset/public/ges
 
 ## ⚙️ 기술 스택
 
-- **언어·런타임:** TypeScript, Node.js
-- **DB:** SQLite (better-sqlite3)
-- **수집:** active-win, uiohook-napi, chokidar
-- **브라우저:** 크롬 확장 (Manifest V3), WebSocket
-- **백그라운드:** PM2
-- **UI:** Electron
-- **AI 에이전트:** OpenClaw + Gemini
-- **알림:** 디스코드
+**언어·런타임**<br>
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)
+
+**데이터·수집**<br>
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![active-win](https://img.shields.io/badge/active--win-555555?style=for-the-badge)
+![uiohook-napi](https://img.shields.io/badge/uiohook--napi-555555?style=for-the-badge)
+![chokidar](https://img.shields.io/badge/chokidar-555555?style=for-the-badge)
+
+**브라우저·실행**<br>
+![Chrome Extension](https://img.shields.io/badge/Chrome_Extension_MV3-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket-010101?style=for-the-badge)
+![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge)
+
+**운영·UI**<br>
+![PM2](https://img.shields.io/badge/PM2-2B037A?style=for-the-badge&logo=pm2&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white)
+
+**에이전트·알림**<br>
+![OpenClaw](https://img.shields.io/badge/OpenClaw-FF6B35?style=for-the-badge)
+![Gemini](https://img.shields.io/badge/Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)
+![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)
 
 ---
 
