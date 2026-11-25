@@ -44,21 +44,30 @@ npm run guardian:dev
 - guardian 첫 줄에 `[guardian] started (demo=true, ...)`가 보이면 데모 모드가 켜진 것.
 - 디스코드 메시지를 받으려면 OpenClaw가 실행 중이고 `.env`의 `OPENCLAW_*`, `NOTIFY_*`가 설정돼 있어야 한다.
 
-### 1-4. 크롬 확장 설치
+### 1-4. 브라우저 확장 설치
 
-1. `chrome://extensions` → 개발자 모드 켜기
+크롬 계열 브라우저(Chrome, Edge, Whale, Brave 등)에서 쓸 수 있다. **쓰는 브라우저마다 따로 설치**하고 1-5의 토큰도 각각 입력한다.
+
+1. 확장 관리 페이지 열기 → 개발자 모드 켜기
+   - 크롬: `chrome://extensions`
+   - 엣지: `edge://extensions` (개발자 모드는 왼쪽 메뉴 아래)
+   - 웨일: `whale://extensions`
 2. 기존 Pattern Bridge가 있으면 **삭제** (확장 ID가 고정되면서 바뀌었기 때문)
-3. "압축해제된 확장 프로그램을 로드합니다" → `browser-extension` 폴더 선택
+3. "압축해제된 확장 프로그램을 로드합니다"(엣지는 "압축을 푼 확장 로드") → `browser-extension` 폴더 선택
 4. 권한(모든 사이트, 알림 등) 허용
 
 ### 1-5. 토큰 입력과 연결 확인
 
-1. `.env`의 `EXTENSION_TOKEN=` 값을 복사
-2. 확장 팝업 → "연결 토큰"에 붙여 넣고 저장
+1. 프로젝트 폴더의 `.env`를 메모장 등으로 열고 `EXTENSION_TOKEN=` **뒤의 값만** 복사 (앞뒤 공백·따옴표 제외)
+2. 브라우저 툴바의 퍼즐 아이콘 → Pattern Bridge 클릭(자주 쓰면 핀 고정) → 팝업 아래쪽 **연결 토큰** 칸에 붙여 넣고 **저장**
 3. 확인
-   - 팝업 "개입 일시 정지" 아래에 **개입 동작 중**(초록색)
-   - guardian 로그: `[extension-link] extension connected`
-   - 크롬에서 탭을 바꾸면 collector 로그: `[browser-monitor] activated tab=... <카테고리> <URL>`
+   - 토큰 칸 아래에 **토큰 저장됨**(초록색)
+   - 팝업 "개입 일시 정지" 아래에 **개입 동작 중**(초록색). guardian이 꺼져 있으면 연결 안 됨으로 나온다
+   - guardian 로그: `[extension-link] chrome extension connected` (엣지는 `edge ...`)
+   - 탭을 바꾸면 collector 로그: `[browser-monitor] chrome activated tab=... <카테고리> <URL>`
+4. 토큰이 없거나 틀리면 탭 정보가 저장되지 않는다. 이때 로그에 원인이 찍힌다
+   - collector: `[browser-monitor] rejected report ...: bad token` → 토큰을 다시 입력
+   - `origin not allowed` → 예전 확장이 남아 있음. 삭제 후 다시 로드
 
 ---
 
@@ -182,6 +191,20 @@ npm run guardian:dev
 - **확인할 로그**: `[R3] #N suggestion 1 (consumption 5m)`, `[messenger] #N R3: sent`
 - **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
 
+### I. 크롬 계열 브라우저 두 개 동시 사용
+
+- **목적**: 앞에 있는 브라우저의 탭으로 판정하고, 정리할 때는 모든 브라우저의 오락 탭을 닫는지
+- **사전 조건**: 크롬과 엣지 모두 확장 설치 + 토큰 입력 (guardian 로그에 `chrome extension connected`, `edge extension connected`)
+- **절차**
+  1. 크롬에 쇼츠, 엣지에 강의(또는 노션) 탭을 띄운다
+  2. 엣지를 앞에 두고 1~2분 → 크롬을 앞에 두고 쇼츠를 2~3분
+  3. 배너가 뜨기 전에 엣지에도 인스타그램 같은 오락 탭을 하나 열어 둔다
+- **기대 결과**
+  - 엣지가 앞일 때 guardian 로그 `now=productive/...`, 크롬이 앞일 때 `now=entertainment/shortform`
+  - R1 배너가 두 브라우저의 오락 탭에 뜨고, 실행되면 **양쪽 오락 탭이 모두** 닫힘 (강의 탭은 그대로)
+- **확인할 로그**: collector `[browser-monitor] edge ...` / `chrome ...`, `R1 executed by fallback`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
 ---
 
 ## 4. 주의 사항
@@ -189,6 +212,7 @@ npm run guardian:dev
 - **판정은 1분 단위**: 매분 정각 + 3초에 직전 1분을 판정하므로, 조건을 채운 뒤 배너까지 최대 1~2분 걸린다.
 - **1분 판정 = 가장 오래 앞에 있던 활동**: 로그를 보느라 cmd 창을 오래 앞에 두면 그 1분은 생산(work)으로 잡힌다. 시나리오 중에는 크롬을 앞에 둘 것. cmd를 10분 넘게 연속으로 보면 오락 연속 시간이 초기화된다.
 - **디스코드 메시지 한도**: 분당 1회. 같은 분에 개입이 겹치면 뒤의 메시지는 보내지 않는다 (`[messenger] ... minute_cap`).
+- **판정은 앞에 있는 창 하나 기준**: 창 두 개를 나란히 띄우면 마지막으로 클릭한 창만 본다. 한 창에 탭이 여러 개면 보고 있는 탭 하나만 본다.
 - **확장이 연결돼 있지 않으면** 배너 없이 개입이 실행 실패로 취소된다 (`cancelled: execution_failed`). 팝업 연결 상태부터 확인.
 - 모든 개입은 DB의 `interventions` 테이블에 상태·실행 주체·결과와 함께 남는다.
 
