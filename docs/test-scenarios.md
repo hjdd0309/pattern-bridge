@@ -201,7 +201,10 @@ npm run guardian:dev
   - 정지 중에는 새 개입이 없음
   - 다시 켜면 팝업이 "개입 동작 중", 이후 조건이 되면 다시 개입
 - **확인할 로그**: `[pause] paused by extension ...`, `R1 cancelled: guardian_paused`, `[pause] resumed by extension`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모:
+  - 정지 → `R1 cancelled: guardian_paused` (배너 사라지고 탭 그대로) → 다시 켜기 → 다음 분에 일반 R1 다시 걸림 (정지 취소는 쉬는 기간을 만들지 않음)
+  - 정지한 시간이 1분이 안 돼서 "정지 중 새 개입 없음"은 실제 브라우저로는 못 봄. 정지 단위 테스트로 확인
+  - 발견: 1분 전에 R3 제안이 나가서 R1 메시지가 분당 1회 제한(`minute_cap`)에 걸려 디스코드로 안 감 → `fix/scenario-e`에서 수정
 
 ### F. R2 생산 모드 (수동 실행)
 
@@ -254,7 +257,9 @@ npm run guardian:dev
   - 엣지가 앞일 때 guardian 로그 `now=productive/...`, 크롬이 앞일 때 `now=entertainment/shortform`
   - R1 배너가 두 브라우저의 오락 탭에 뜨고, 실행되면 **양쪽 오락 탭이 모두** 닫힘 (강의 탭은 그대로)
 - **확인할 로그**: collector `[browser-monitor] edge ...` / `chrome ...`, `R1 executed by fallback`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모:
+  - 엣지 PDF가 앞일 때 `now=productive/work`, 크롬 쇼츠가 앞일 때 `now=entertainment/video`
+  - R1 실행 결과 `closed: 3` (크롬 1, 엣지 2), 엣지 PDF 탭은 그대로. E와 같은 R1 사이클에서 확인
 
 ### J. 브라우저로 로컬 문서 보기
 
