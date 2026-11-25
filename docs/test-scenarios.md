@@ -58,7 +58,12 @@ npm run guardian:dev
 
 ### 1-5. 토큰 입력과 연결 확인
 
-1. 프로젝트 폴더의 `.env`를 메모장 등으로 열고 `EXTENSION_TOKEN=` **뒤의 값만** 복사 (앞뒤 공백·따옴표 제외)
+1. 프로젝트 폴더의 `.env`를 메모장으로 열고 `EXTENSION_TOKEN=` **뒤의 값만** 복사 (앞뒤 공백·따옴표 제외)
+
+   ```cmd
+   notepad .env
+   ```
+
 2. 브라우저 툴바의 퍼즐 아이콘 → Pattern Bridge 클릭(자주 쓰면 핀 고정) → 팝업 아래쪽 **연결 토큰** 칸에 붙여 넣고 **저장**
 3. 확인
    - 토큰 칸 아래에 **토큰 저장됨**(초록색)
@@ -68,6 +73,20 @@ npm run guardian:dev
 4. 토큰이 없거나 틀리면 탭 정보가 저장되지 않는다. 이때 로그에 원인이 찍힌다
    - collector: `[browser-monitor] rejected report ...: bad token` → 토큰을 다시 입력
    - `origin not allowed` → 예전 확장이 남아 있음. 삭제 후 다시 로드
+
+### 1-6. 코드가 바뀐 뒤 다시 테스트할 때
+
+수정 커밋을 받은 뒤에는 아래를 다시 해야 새 코드가 반영된다. 토큰은 다시 입력하지 않아도 된다.
+
+1. 최신 코드 받기
+
+   ```cmd
+   git pull
+   ```
+
+2. 확장 관리 페이지(`chrome://extensions` 등)에서 Pattern Bridge 카드의 **새로고침(↻)**. 여러 브라우저에 설치했다면 각각
+3. collector, guardian 창에서 각각 **Ctrl+C**로 끄고 1-3의 명령으로 다시 실행
+4. 1-5의 3번 항목으로 연결 확인
 
 ---
 
