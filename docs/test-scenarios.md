@@ -125,7 +125,13 @@ npm run guardian:dev
   - `[intervention] #N R1 decided, grace 30s`
   - `[messenger] #N R1: sent`
   - `[intervention] #N R1 executed by fallback` (5단계 전까지는 항상 fallback)
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모:
+  - 오락 연속 2분 → 배너(30초) → 오락 탭 정리까지 정상
+  - 디스코드 메시지 실패: OpenClaw `503 hook agent run did not start before admission timeout` (PC 절전 복귀 직후 첫 실행으로 추정) → `fix/scenario-a`에서 503·연결 거부만 1회 재시도
+  - 정리 직후 "다시 열기" 오탐: 정리 시각이 포함된 1분(정리 전 오락)을 다시 연 것으로 판정 → `fix/scenario-a`에서 정리 이후 시작한 1분부터만 판정
+  - 피드백: 데모 유예 30초는 짧게 느껴지지만 데모용이라 유지 (실제 값 5분)
+  - 재테스트(수정 후): 다시 열기 오탐 없음, 디스코드 메시지 도착
+  - 알려진 한계: 디스코드 전달까지 약 56초 (OpenClaw 에이전트가 Gemini로 문장을 만드는 시간). 데모 유예 30초보다 늦게 오지만 실제 값(5분 / 다시 열기 1분)에서는 정리 전에 도착. 5단계에서 개선 검토
 
 ### B. R1 유예 중 이탈 → 일시 정지 → 복귀 시 이어서
 
@@ -139,7 +145,7 @@ npm run guardian:dev
   - 돌아오면 배너가 **남은 시간**으로 다시 뜨고, 끝나면 오락 탭이 닫힘
   - 원래 마감 시각까지 돌아오지 않으면 개입이 취소됨
 - **확인할 로그**: `R1 paused (user left entertainment)` → `R1 resumed` → `executed`, 또는 `cancelled: user_left`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모: A 테스트 중 확인 (`paused` → `resumed`)
 
 ### C. 배너 "지금 닫기"
 
@@ -147,7 +153,7 @@ npm run guardian:dev
 - **절차**: A처럼 배너를 띄우고 **지금 닫기** 클릭
 - **기대 결과**: 카운트다운을 기다리지 않고 바로 오락 탭이 닫힘
 - **확인할 로그**: `#N close-now requested from banner` → `R1 executed by fallback`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+- **결과**: [x] 통과 / [ ] 실패 — 날짜: 2026-11-25 / 메모: A 테스트 중 확인 (`close-now requested from banner` → `executed`)
 
 ### D. 정리 직후 다시 열기
 
