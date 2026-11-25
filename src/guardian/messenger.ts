@@ -29,11 +29,8 @@ export function buildMessage(it: Intervention): string {
   const grace = it.graceUntil ? Math.round((it.graceUntil - it.decidedAt) / 1000) : 0;
   const lines = ["[바른생활지킴이]"];
   if (it.rule === "R1") {
-    if (p["reopen"]) {
-      lines.push("상황: 방금 오락 탭을 정리했는데 10분이 지나기 전에 다시 오락 콘텐츠를 열었습니다.");
-    } else {
-      lines.push(`상황: 오락 콘텐츠를 ${minutesText(Number(p["streakMinutes"] ?? 0))}째 연속으로 보고 있습니다${p["night"] ? " (지금은 심야 시간대)" : ""}.`);
-    }
+    // Re-warnings (plan.rewarn) are banner-only and never reach here.
+    lines.push(`상황: 오락 콘텐츠를 ${minutesText(Number(p["streakMinutes"] ?? 0))}째 연속으로 보고 있습니다${p["night"] ? " (지금은 심야 시간대)" : ""}.`);
     lines.push(`예정 동작: ${grace}초 뒤 오락 탭을 정리합니다. 화면에도 카운트다운이 표시됩니다.`);
     lines.push("사용자에게 정리 예정임을 알리고 잠깐 쉬어 가자고 권해 주세요.");
   } else if (it.rule === "R2") {
