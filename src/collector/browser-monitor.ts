@@ -126,9 +126,15 @@ function num(v: unknown): number | null {
  * unknown sites fall into the browser rule (search) instead of `other`.
  */
 function toTabEvent(event: string, t: Record<string, unknown>, browser: string): EventInput | null {
-  const url = str(t["url"]);
-  if (!url) return null;
-  const title = str(t["title"]);
+  const rawUrl = str(t["url"]);
+  if (!rawUrl) return null;
+  const rawTitle = str(t["title"]);
+  const category = classify({ url: rawUrl, title: rawTitle });
+  // Local files: classify by the real path, but never store it (folders and
+  // file names are personal). Only the extension is kept.
+  const local = isLocalFile(rawUrl);
+  const url = local ? localPlaceholder(rawUrl) : rawUrl;
+  const title = local ? "" : rawTitle;
   return {
     userId: USER_ID,
     action: "browser_tab",
@@ -141,9 +147,20 @@ function toTabEvent(event: string, t: Record<string, unknown>, browser: string):
       title,
       active: t["active"] === true,
       audible: t["audible"] === true,
-      ...classify({ url, title }),
+      ...category,
     },
   };
+}
+
+function isLocalFile(url: string): boolean {
+  return /^file:/i.test(url);
+}
+
+/** file:///C:/folder/강의.pdf → file:///local.pdf (extension only). */
+export function localPlaceholder(url: string): string {
+  const name = url.split(/[?#]/)[0]!.split(/[\\/]/).pop() ?? "";
+  const ext = /\.([a-z0-9]{1,5})$/i.exec(name)?.[1]?.toLowerCase();
+  return ext ? `file:///local.${ext}` : "file:///local";
 }
 
 export function startBrowserMonitor(port = DEFAULT_PORT): void {

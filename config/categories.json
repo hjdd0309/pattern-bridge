@@ -2,6 +2,11 @@
   "_comment": "Activity category rules for the intervention layer. Rules are checked in order; the first match wins. Each field is a case-insensitive regex tested against the app name, the URL domain, the window/page title, or the full URL (`url`, used only by the real-time classifier in src/collector/classifier.ts; the Python scripts ignore it). Intervention levels: entertainment=active, sns=active, leisure=none, study=minimal, work=minimal, exercise=gentle.",
   "rules": [
     {
+      "_comment": "A document opened from disk in the browser (file://…pdf) counts like the same document in a desktop app (PDF reader, Word, 한글).",
+      "category": "work",
+      "url": "^file:.*\\.(pdf|docx?|hwpx?|pptx?|xlsx?)$"
+    },
+    {
       "category": "work",
       "app": "Visual Studio Code|IntelliJ|PyCharm|Windows Terminal|PowerShell|명령 처리기|콘솔 창|Docker|Notepad|Sublime|Word|Excel|PowerPoint|HWP|한글|PDF|Acrobat|LibreOffice|wxmaxima|Show 2024|Python"
     },
