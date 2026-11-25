@@ -53,17 +53,23 @@ described in §3.
 
 | Collector | Action logged | Fields stored | Explicitly NOT stored |
 |---|---|---|---|
-| `window-monitor.ts` | `window_focus` | app name, window **title text**, platform, process id | — (title text is stored; see note below) |
+| `window-monitor.ts` | `window_focus` | app name, category, platform, process id; window title **for browsers only** (a local document's name reduced to `local.<ext>`) | window titles of other apps (see note below) |
 | `browser-history.ts` / `browser-monitor.ts` | `browser_url` | URL, page title | page content, form data, cookies |
 | `keyboard-monitor.ts` | `keyboard_activity` | **count** of keydown events per 60 s window | which keys were pressed, any typed text/content |
 | `file-monitor.ts` | `file_open` / `file_save` | file path, extension | file content |
 
-Note on window titles and URLs: these *are* collected and stored locally,
-because the pattern-mining algorithms need them (e.g. distinguishing "Chrome
-— Gmail" from "Chrome — YouTube" is what makes time-of-day and sequence
-detection useful at all). This is a deliberate trade-off, not an oversight —
-the mitigation is that this data never leaves the local SQLite file (§1) and
-is never included in what is sent to OpenClaw (§3).
+Note on window titles and URLs: a window title is read to classify the
+window (e.g. telling "Chrome — Gmail" from "Chrome — YouTube"), and the
+category is stored with the event. The title itself is stored only for
+browsers, whose tab titles the extension reports anyway. Outside browsers a
+title is often personal text (an untitled Notepad note shows its first line,
+KakaoTalk shows the chat partner's name), so it is dropped
+(`src/collector/title-privacy.ts`). A browser showing a local document keeps
+only the extension (`local.pdf`), like a `file://` URL does
+(`file:///local.pdf`). URLs and browser titles are stored locally; they never
+leave the SQLite file (§1) and are never included in what is sent to
+OpenClaw (§3). Events recorded before these rules can be brought in line with
+`npm run redact-titles`.
 
 Categorically never collected, regardless of collector:
 

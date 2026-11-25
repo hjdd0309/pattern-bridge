@@ -2,6 +2,7 @@ import os from "os";
 import activeWindow from "active-win";
 import { logEvent } from "./log-event.js";
 import { classify } from "./classifier.js";
+import { storableTitle } from "./title-privacy.js";
 
 type WindowState = {
   title: string;
@@ -28,11 +29,13 @@ async function poll(): Promise<void> {
 
   lastWindow = current;
 
+  // Classify with the real title, store only what storableTitle allows.
+  const title = storableTitle(current.app, current.title);
   logEvent({
     userId: USER_ID,
     action: "window_focus",
     metadata: {
-      title: current.title,
+      ...(title !== undefined ? { title } : {}),
       app: current.app,
       platform: result.platform,
       processId: result.owner.processId,
@@ -40,7 +43,7 @@ async function poll(): Promise<void> {
     },
   });
 
-  console.log(`[window-monitor] ${current.app} — ${current.title}`);
+  console.log(`[window-monitor] ${current.app}${title !== undefined ? ` — ${title}` : ""}`);
 }
 
 export function startWindowMonitor(intervalMs = 1_000): void {

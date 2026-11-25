@@ -12,6 +12,7 @@
     "eval-report": "tsx scripts/eval-report.ts",
     "ablation": "tsx scripts/run-ablation.ts",
     "demo-db": "tsx scripts/prepare-demo-db.ts",
+    "redact-titles": "tsx scripts/redact-titles.ts",
     "ui": "electron src/ui/main.cjs",
     "start:all": "pm2 start ecosystem.config.cjs",
     "collector:start": "pm2 start ecosystem.config.cjs --only pattern-bridge-collector",
