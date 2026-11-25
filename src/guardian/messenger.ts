@@ -1,4 +1,5 @@
-import { isConnectionError, sendAgentMessage } from "../trigger/openclaw-client.js";
+import axios from "axios";
+import { isConnectionError, sendAgentMessage, WebhookStatusError } from "../trigger/openclaw-client.js";
 import { getConfig } from "./config.js";
 import { dayKey } from "./history.js";
 import { updatePlan, type Intervention } from "./interventions.js";
@@ -9,7 +10,8 @@ import { getState, setState } from "./state.js";
 // The webhook text only carries the rule, minutes, time of day and the planned
 // action — never site names, URLs or titles — so no outside text reaches the
 // LLM. Sending is fire-and-forget: a failure is logged and recorded on the
-// intervention, never retried (a retry storm burned the free quota once).
+// intervention. Only failures where OpenClaw certainly did not run the agent
+// are retried, once (see isSafeToRetry); a retry storm burned the free quota once.
 // Hard caps (per minute / per day) stop a bug from flooding the agent.
 
 type WebhookLog = { day: string; count: number; lastAt: number };
@@ -60,11 +62,35 @@ function reserve(now: number): { ok: true } | { ok: false; reason: string } {
   return { ok: true };
 }
 
+export const RETRY_DELAY_MS = { value: 3_000 }; // object so tests can shorten it
+
+/**
+ * True when OpenClaw certainly did not run the agent, so sending again cannot
+ * produce a duplicate message: 503 (agent run not admitted, e.g. right after
+ * the PC woke up) or the connection was refused (gateway not running).
+ * A timeout is NOT safe: the agent may still be writing to Discord.
+ */
+export function isSafeToRetry(err: unknown): boolean {
+  if (err instanceof WebhookStatusError) return err.status === 503;
+  return axios.isAxiosError(err) && !err.response && err.code === "ECONNREFUSED";
+}
+
+async function sendOnceRetrying(text: string): Promise<{ ok: boolean }> {
+  try {
+    return await sendAgentMessage(text);
+  } catch (err) {
+    if (!isSafeToRetry(err)) throw err;
+    console.warn(`[messenger] OpenClaw did not take the message (${err instanceof Error ? err.message : String(err)}), retrying once`);
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS.value));
+    return await sendAgentMessage(text);
+  }
+}
+
 async function send(it: Intervention, now: number): Promise<string> {
   const r = reserve(now);
   if (!r.ok) return r.reason;
   try {
-    const res = await sendAgentMessage(buildMessage(it));
+    const res = await sendOnceRetrying(buildMessage(it));
     return res.ok ? "sent" : "skipped_not_configured";
   } catch (err) {
     const why = isConnectionError(err) ? "unreachable" : "error";
@@ -93,7 +119,7 @@ export function notifyResumed(now = Date.now()): void {
     "상황: 사용자가 걸어 둔 개입 일시 정지 시간이 끝나 개입을 다시 시작했습니다.",
     "사용자에게 한국어로 한 문장만 짧게 알려 주세요.",
   ].join("\n");
-  void sendAgentMessage(text)
+  void sendOnceRetrying(text)
     .then((res) => console.log(`[messenger] resume notice: ${res.ok ? "sent" : "skipped_not_configured"}`))
     .catch((err: unknown) => console.error(`[messenger] resume notice failed: ${err instanceof Error ? err.message : String(err)}`));
 }

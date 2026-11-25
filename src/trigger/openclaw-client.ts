@@ -25,6 +25,14 @@ function buildMessage(pattern: PatternResult): string {
  * DNS) — as opposed to an HTTP error status, which sendWebhook() throws as a
  * plain Error. Callers use this to stop a batch instead of retrying every item.
  */
+/** The hook answered with a non-2xx status. */
+export class WebhookStatusError extends Error {
+  constructor(readonly status: number, body: unknown) {
+    super(`OpenClaw webhook returned ${status}: ${JSON.stringify(body)}`);
+    this.name = "WebhookStatusError";
+  }
+}
+
 export function isConnectionError(err: unknown): boolean {
   return axios.isAxiosError(err) && !err.response;
 }
@@ -72,9 +80,7 @@ export async function sendAgentMessage(message: string): Promise<WebhookResponse
   });
 
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(
-      `OpenClaw webhook returned ${response.status}: ${JSON.stringify(response.data)}`
-    );
+    throw new WebhookStatusError(response.status, response.data);
   }
 
   return { ok: true, status: response.status, body: response.data };
