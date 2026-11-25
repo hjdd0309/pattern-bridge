@@ -1,207 +1,264 @@
-# 🧠 Pattern Bridge
+# 🧠 Pattern Bridge — 바른생활지킴이 에이전트
 
-> **말 안 해도 먼저 챙겨주는 AI 미들레이어**
+> **에이전트를 고치지 않고, 그 앞에서 "지금 나서야 할 때인가"를 판단하는 레이어**
 
-Pattern Bridge는 사용자의 컴퓨터 행동 패턴을 백그라운드에서 수집·분석하고, 평소 루틴을 놓쳤을 때 AI 에이전트(OpenClaw)에 신호를 보내 **AI가 먼저 말을 겁니다.**
+지금의 AI 에이전트는 사용자가 말해야 움직입니다. 그런데 새벽까지 쇼츠를 보거나 할 일을 미루는 문제는, 사용자가 스스로 알아차리지 못하거나 알아도 도와 달라고 하지 않는 순간에 생깁니다.
 
----
+Pattern Bridge는 PC에서 **지금 무엇을, 얼마나** 하고 있는지 보고, 정해진 규칙으로 개입할 때를 판단합니다. 개입이 필요하면 에이전트(OpenClaw)를 깨워 디스코드로 말을 걸게 하고, 화면에서는 오락 탭을 정리하거나 공부할 창을 열어 줍니다.
 
-## 📐 연구 범위 (Scope)
-
-이 프로젝트는 **단일 사용자(1인) 데이터를 기반으로 한 사례 연구(case study)** 입니다. 아래 범위를 벗어난 주장은 하지 않습니다.
-
-- **데이터 규모**: 브라우저 히스토리는 최초 실행 시 최근 30일치를 백필(backfill)하며, 이후 창 포커스 / 파일 입출력 / 키 입력 횟수 등은 실시간(1초~5분 간격 폴링)으로 계속 수집됩니다. 본 저장소에 포함된 정량 평가 수치(정밀도, ablation 비교표 등)는 모두 이 1인 사용자의 로컬 데이터베이스(`data/pattern-bridge.sqlite`) 하나에서 산출된 것입니다.
-- **검증 대상**: 3-알고리즘 앙상블(베이지안 / PrefixSpan / FFT)이 *이 사용자의* 사용 패턴에서 얼마나 정확하게 "놓침"을 감지하는지를 `notification_log` 기반 피드백(👍/👎)으로 정량화합니다 (`npm run eval-report`, `npm run ablation`).
-- **범위 밖 — 향후 과제**: 여러 사용자에 걸친 일반화 가능성(다중 사용자 검증), 사용자 간 행동 패턴의 이질성에 대한 강건성, 장기간(수개월 이상)에 걸친 개념 변화(concept drift) 분석은 이번 연구의 범위에 포함되지 않으며 향후 과제로 남겨둡니다.
+Pattern Bridge는 이 판단 레이어이고, **바른생활지킴이**는 그 위에 올린 첫 적용 사례입니다.
 
 ---
 
 ## 💡 핵심 아이디어
 
-기존 AI 어시스턴트는 사용자가 말해야 반응합니다.
+**판단은 규칙으로, 수행은 에이전트가, 실패하면 레이어가 직접.**
 
-Pattern Bridge는 이걸 뒤집습니다:
+| 역할 | 누가 | 왜 |
+| --- | --- | --- |
+| **판단** (개입할 상황인가) | 판단 레이어 (규칙) | 사용자의 창을 닫는 개입이라, 같은 상황이면 항상 같은 결정이 나오고 이유를 설명할 수 있어야 함 |
+| **수행** (대화, 도구 호출) | 에이전트 (OpenClaw) | 사람에게 말을 걸고 도구를 고르는 건 에이전트가 잘하는 일 |
+| **안전장치** (fallback) | 판단 레이어 | 에이전트가 느리거나 실패해도 개입이 빠지면 안 됨 |
 
 ```
-사용자가 아무 말도 안 함
+쇼츠를 40분째 연속으로 봄
 ↓
-Pattern Bridge: "매일 9시에 Chrome 여는데 오늘 32분째 안 열었네"
+판단 레이어: R1 발동 (오락 연속 40분)
 ↓
-OpenClaw에 webhook 신호
+화면: 오락 탭에 5분 카운트다운 배너  +  디스코드: "40분째 보고 있어요, 잠깐 쉬어 갈까요?"
 ↓
-텔레그램: "오늘 Chrome 아직 안 여셨어요 👀"
+5분 뒤 오락 탭만 정리 (문서·공부 탭은 그대로)
 ```
+
+에이전트에게는 셸·파일·브라우저 같은 넓은 기본 도구 대신, 판단 레이어가 만든 **좁은 도구만** 줍니다. 탭 닫기와 배너는 우리 크롬 확장이 정해진 명령만 실행하고, 웹페이지 내용이나 URL은 LLM으로 가지 않습니다. 판단과 도구가 모두 레이어 쪽에 있어서, 에이전트를 다른 것으로 바꿔도 판단 로직은 그대로입니다.
+
+---
+
+## 🚦 개입 규칙
+
+| 규칙 | 조건 | 개입 |
+| --- | --- | --- |
+| **R1 오락 연속** | 오락을 40분 연속 (0~5시는 20분) | 5분 카운트다운 → 모든 브라우저의 오락 탭 정리. 끝난 뒤 10분은 쉬고, 그 사이 돌아오면 1분 다시 경고 한 번만 |
+| **R2 생산 부족** | 매분 확인. 오늘 공부·작업이 평소 이 시각까지의 50% 미만이고 지금 공부 중이 아님 | 5분 카운트다운 → 오락 탭 정리, 창 최소화, 평소 쓰던 문서·사이트 열기. 끝난 뒤 60분은 쉼 |
+| **R3 소비 과다** | 오늘 오락 + 여가(운동 제외) 2시간 초과 | 디스코드로 제안만. 이후 30분마다, 그 순간 오락·여가 중일 때만 |
+
+- 우선순위는 R2 > R1 > R3입니다.
+- 카운트다운 중에 오락에서 벗어나면 일시 정지되고, 마감 전에 돌아오면 남은 시간부터 이어집니다. R2는 공부를 시작하면 취소됩니다.
+- 브라우저 확장 팝업에서 개입을 일시 정지할 수 있습니다 (30분, 1시간, 오늘, 직접 켤 때까지).
+- 활동 분류(오락, 생산, 여가, 중립)는 `config/categories.json`과 `config/intervention.json`에서 정합니다. 기준 시간과 데모 값도 `config/intervention.json`에 있습니다.
 
 ---
 
 ## 🏗️ 시스템 구조
 
+```mermaid
+flowchart LR
+  subgraph PC["사용자 PC"]
+    OS["OS<br>활성 창 · 입력 횟수 · 파일"]
+    EXT["크롬 확장<br>탭 보고 · 배너 · 탭 닫기/열기"]
+    COL["collector<br>수집 + 카테고리 분류"]
+    DB[("SQLite")]
+    subgraph GUA["guardian (판단 레이어)"]
+      JUDGE["1분 판정<br>연속·누적 시간"]
+      RULES["규칙<br>R1 · R2 · R3"]
+      MGR["개입 관리<br>유예 · 일시 정지"]
+      EXEC["실행기"]
+    end
+  end
+  OC["OpenClaw<br>(에이전트)"]
+  DC["디스코드"]
+
+  OS --> COL
+  EXT -- "HTTP: 탭 변경" --> COL
+  COL --> DB
+  DB -- "1분마다" --> JUDGE
+  JUDGE --> RULES --> MGR
+  MGR -- "웹훅: 규칙·시간 요약만" --> OC --> DC
+  MGR -- "유예 끝 (fallback)" --> EXEC
+  EXEC -- "WebSocket: 정해진 명령" --> EXT
+  EXEC -- "PowerShell: 창 최소화 · 문서 열기" --> OS
+```
+
+- **collector**와 **guardian**은 별도 프로세스입니다. 네이티브 모듈(창 감지, 입력 훅)이 있는 수집 쪽이 죽어도 판단·실행 상태가 지켜지도록 나눴고, 둘은 SQLite로만 연결됩니다.
+- 크롬 확장은 탭 상태를 collector에 보고하고, guardian의 정해진 명령(탭 목록, 탭 닫기·열기, 배너, 알림)만 실행합니다.
+
 ```
 pattern-bridge/
 ├── src/
-│   ├── collector/               # 데이터 수집
-│   │   ├── window-monitor.ts    # 활성 창 감지 (1초마다)
-│   │   ├── browser-history.ts   # 크롬 히스토리 수집 (5분마다)
-│   │   ├── file-monitor.ts      # 파일 열기/저장 감지
-│   │   ├── keyboard-monitor.ts  # 키보드 입력 횟수 카운트
-│   │   └── app-time.ts          # 앱별 사용시간 계산
-│   ├── analyzer/                # 패턴 분석
-│   │   ├── pattern-engine.ts    # 3가지 알고리즘 앙상블
-│   │   ├── missed-detector.ts   # 놓침 감지
-│   │   └── check-patterns.ts    # CLI 패턴 뷰어
-│   ├── trigger/
-│   │   └── openclaw-client.ts   # OpenClaw webhook 클라이언트
-│   ├── scheduler/
-│   │   └── index.ts             # 크론 스케줄러
-│   └── ui/                      # Electron 대시보드
-├── config/config.ts
-└── ecosystem.config.cjs         # PM2 설정
+│   ├── collector/        # 수집: 활성 창, 탭 보고(/collect), 입력 횟수, 파일, heartbeat, 분류기
+│   ├── guardian/         # 판단 레이어: 1분 판정, 기준선, 규칙, 개입 관리, 실행기, 메시지, 일시 정지
+│   ├── trigger/          # OpenClaw 웹훅 클라이언트
+│   ├── db/               # SQLite 스키마
+│   ├── analyzer/         # (이전 방향) 패턴 엔진, 놓침 감지
+│   └── ui/               # Electron 대시보드
+├── browser-extension/    # 크롬 계열 확장 (Manifest V3)
+├── config/               # categories.json (분류), intervention.json (개입 정책)
+├── scripts/              # 데모 DB, R2 수동 실행, 창 제목 정리, 데이터셋 변환
+├── docs/                 # 테스트 시나리오, 프라이버시 설계
+└── ecosystem.config.cjs  # PM2 (collector, guardian)
 ```
-
----
-
-## 🔬 패턴 분석 알고리즘
-
-3가지 알고리즘 앙상블로 행동 패턴을 감지합니다:
-
-| 알고리즘 | 가중치 | 감지 내용 |
-|---------|--------|----------|
-| 베이지안 시간대 분석 | 40% | "매일 10시에 Chrome 열 확률 87%" |
-| PrefixSpan 시퀀스 마이닝 | 35% | "VSCode → Chrome → KakaoTalk 순서로 항상 전환" |
-| FFT 주기 분석 | 25% | "24시간, 168시간(1주일) 주기 사용 패턴" |
-
-**최종 신뢰도 = 0.40 × 베이지안 + 0.35 × PrefixSpan + 0.25 × FFT**
-
-신뢰도 ≥ 75% + 2개 이상 알고리즘 동의 → 패턴 저장
-
-### 놓침 감지
-감지된 패턴의 예상 시간이 10분 이상 경과했는데 해당 앱을 사용하지 않은 경우 → OpenClaw webhook 호출 → 텔레그램 알림
-
----
-
-## ⚙️ 기술 스택
-
-- **언어**: TypeScript
-- **런타임**: Node.js v24
-- **DB**: SQLite (better-sqlite3)
-- **백그라운드**: PM2
-- **UI**: Electron
-- **AI 에이전트**: OpenClaw + Gemini 2.5 Flash
-- **알림**: 텔레그램 봇
 
 ---
 
 ## 🚀 시작하기
 
 ### 사전 요구사항
-- Node.js v20+
-- PM2 (`npm install -g pm2`)
-- OpenClaw (WSL2)
-- 텔레그램 봇 토큰
+- Windows, Node.js v20 이상
+- 크롬 계열 브라우저 (Chrome, Edge, Whale, Brave 등)
+- 디스코드 메시지를 받으려면: OpenClaw와 디스코드 봇 연결
 
-### 설치
+### 설치와 환경 설정
 
-```bash
+```cmd
 git clone https://github.com/hjdd0309/pattern-bridge.git
-cd pattern-bridge
+cd /d pattern-bridge
 npm install
+copy .env.example .env
 ```
 
-### 환경 설정
+`.env`에서 아래 값을 채웁니다.
 
-```bash
-cp .env.example .env
-```
-
-`.env` 수정:
-
-```
-OPENCLAW_WEBHOOK_URL=http://127.0.0.1:18789/hooks/agent
-OPENCLAW_TOKEN=your-secret-token
-NOTIFY_CHANNEL=telegram          # 또는 discord
-NOTIFY_TO=your-chat-or-channel-id # 텔레그램 chat id / 디스코드 채널 ID
-```
+| 값 | 내용 |
+| --- | --- |
+| `OPENCLAW_WEBHOOK_URL`, `OPENCLAW_TOKEN` | OpenClaw 웹훅 주소와 토큰 |
+| `NOTIFY_CHANNEL`, `NOTIFY_TO` | `discord`와 메시지를 받을 디스코드 채널 ID (비어 있으면 메시지를 보내지 않음) |
+| `EXTENSION_TOKEN` | 크롬 확장과 연결할 아무 긴 무작위 문자열 |
 
 ### 실행
 
-```bash
-# 백그라운드 수집 시작
-pm2 start ecosystem.config.cjs
+```cmd
+:: 데모 DB 만들기 (처음 한 번만, 익명화 데이터를 최근 날짜로 옮긴 사본)
+npm run demo-db
 
-# 패턴 분석 결과 확인
-npx tsx src/analyzer/check-patterns.ts
+:: 터미널 1: collector
+npm run dev
+```
 
-# Electron UI 실행
-npm run ui
+```cmd
+:: 터미널 2: guardian (데모 모드: 기준 시간을 짧게)
+set GUARDIAN_DEMO=1
+npm run guardian:dev
+```
+
+그다음 `browser-extension` 폴더를 브라우저에 "압축해제된 확장 프로그램"으로 불러오고, 팝업에 `EXTENSION_TOKEN` 값을 입력합니다. 확장 설치, 연결 확인, 시나리오별 테스트 절차는 [docs/test-scenarios.md](docs/test-scenarios.md)에 있습니다.
+
+백그라운드로 계속 돌리려면 PM2를 씁니다.
+
+```cmd
+npm run start:all
 ```
 
 ---
 
 ## 📊 수집 데이터
 
-| 데이터 | 방법 | 주기 |
-|--------|------|------|
-| 활성 창/앱 이름 | OS API | 1초마다 |
-| 브라우저 방문 URL | 크롬 히스토리 파일 직접 읽기 | 5분마다 |
-| 파일 열기/저장 | 파일시스템 감시 | 실시간 |
-| 키보드 입력 횟수 | 글로벌 훅 (횟수만, 내용 아님) | 1분마다 |
-| 앱별 사용시간 | 창 이벤트 집계 | 요청 시 |
-
-> ⚠️ 모든 데이터는 **로컬에만 저장**됩니다. 외부 서버로 전송되는 데이터는 없으며, 본인이 직접 운영하는 OpenClaw 인스턴스로만 webhook이 호출됩니다.
-
-### 공개 데이터셋 (익명화)
-
-실제 수집한 데이터(이벤트 164,551건, 탐지 패턴 607건, 알림 10건)를 익명화해 `dataset/pattern-bridge-anon.sqlite`로 포함했습니다.
-
-- **유지**: 이벤트 종류, 발생 시각, 앱 이름, 탐지 패턴, 알림 로그 — 패턴 엔진이 읽는 값은 원본과 동일
-- **제거**: 창 제목, 파일 경로(확장자만 남김), 브라우저 URL(도메인만 남김)
-- **추가**: 창 제목, 도메인, 앱 이름으로 판단한 활동 카테고리 `category`(`entertainment`, `sns`, `study`, `work`, `leisure`, `exercise`, `communication`, `shopping`, `finance`, `search`, `system`, `other`)와, 해당하면 세부 분류 `subcategory`(`shortform`, `video`, `game`, `webtoon` 등)
-
-카테고리 규칙은 `config/categories.json`에 있습니다. 위에서부터 순서대로 검사해 처음 맞는 규칙을 적용하며, 공개 데이터셋 변환 DB에도 같은 규칙을 적용했습니다.
-
-이 DB로 바로 실행하려면:
-
-```powershell
-$env:DB_PATH = "dataset/pattern-bridge-anon.sqlite"; npm run ui
-```
-
-익명화 사본은 `python scripts/anonymize-data.py`로 다시 만들 수 있습니다. 시연용 소량 DB는 `dataset/pattern-bridge-demo-anon.sqlite`(이벤트 692건)입니다.
-
-### 외부 공개 데이터셋
-
-일반화 검증에 쓴 외부 공개 데이터셋을 `dataset/public/`에 포함했습니다. 각 폴더의 `pattern-bridge-*.sqlite`는 원본을 Pattern Bridge 스키마(`user_events`)로 변환한 것입니다. 라이선스와 인용 조건은 각 원본 데이터셋을 따릅니다.
-
-| 데이터셋 | 폴더 | 원본 파일 | 변환 DB |
-|---------|------|-----------|---------|
-| BEHACOM (PC 사용 행동, 12명) | `dataset/public/behacom/` | `Behacom.zip`, `behacom-slim.csv` | 이벤트 40,581건 |
-
-> OpenClaw는 PC에서 동작하므로 폰 데이터셋(LSApp, LiveLab)은 포함하지 않습니다.
-
-#### PC·노트북 데이터셋 (OpenClaw 대상 환경)
-
-개입 판단 레이어 검증에는 아래 PC 데이터셋을 사용합니다. 변환 스크립트는 `scripts/import-public-pc.py`입니다. 타임스탬프는 주 단위로 옮겨서 시간대와 요일을 그대로 유지했습니다.
-
-| 데이터셋 | 폴더 | 내용 | 라이선스 |
-|---------|------|------|---------|
-| [Labelled AWT](https://github.com/project-pivot/labelled-awt-data) (Beerepoot, 2024) | `dataset/public/awt/` | 1명의 4주 치 활성 창 로그(앱, 창 제목, 시작·종료 시각) 10,066건. 창마다 수동으로 단 활동 라벨이 있음 | GPL-3.0 |
-| [SWELL-KW](https://doi.org/10.17026/dans-x55-69zp) (Koldijk 외, 2014) | `dataset/public/swell/` | 25명이 휴식, 보통, 방해, 시간 압박 조건에서 일할 때의 분 단위 키보드·마우스·앱 전환 특징 3,139분 | CC BY-NC-SA 4.0 |
-| [GESIS Web Tracking](https://zenodo.org/records/4757574) (Kulshrestha 외, 2021) | `dataset/public/gesis/` | 독일 사용자 2,148명의 한 달 치 웹 방문 9,151,243건(도메인, 방문 시각, 활성 시간). 도메인마다 41종 카테고리가 붙어 있음 | CC BY-NC 4.0 |
-
-- GESIS는 원본 `browsing.csv`(680MB)에서 쓰는 컬럼만 남겨 `browsing-compact.csv.gz`(49MB)로 넣었습니다. 9,151,243건 전체가 들어 있습니다.
-- 엔진에 바로 넣을 수 있는 `pattern-bridge-gesis-sample50.sqlite`는 사용자 50명을 시드 고정으로 뽑은 표본입니다(208,054건). 인원을 바꾸려면 아래처럼 다시 만듭니다.
-
-```powershell
-$env:GESIS_USERS = "50"; python scripts/import-public-pc.py gesis dataset/public/gesis dataset/public/gesis/pattern-bridge-gesis-sample50.sqlite
-```
-
----
+| 데이터 | 방법 | 저장 |
+| --- | --- | --- |
+| 활성 창 | OS API, 1초마다 | 앱 이름, 카테고리. 창 제목은 브라우저만 (로컬 문서는 `local.pdf`처럼 확장자만) |
+| 브라우저 탭 | 크롬 확장이 탭이 바뀔 때 보고 | URL, 제목, 카테고리. 로컬 파일은 `file:///local.pdf`처럼 확장자만 |
+| 입력 활동 | 글로벌 훅, 1분마다 | 키보드·마우스 **횟수만** (입력 내용, 좌표 없음) |
+| 파일 열기·저장 | 바탕화면·문서·다운로드 폴더 감시 | 경로, 확장자 (내용은 읽지 않음) |
+| collector 상태 | 30초마다 heartbeat | 꺼져 있으면 판단을 멈춤 |
 
 ## 🔒 프라이버시
 
-- 키보드 **횟수만** 기록 — 입력 내용은 절대 저장하지 않음
-- 모든 데이터는 로컬 SQLite DB에만 저장
-- 브라우저 히스토리는 로컬에서만 읽고 외부로 전송하지 않음
-- OpenClaw + 텔레그램 봇을 직접 운영
+- 모든 데이터는 **로컬 SQLite에만** 저장됩니다.
+- 외부로 나가는 건 OpenClaw로 보내는 웹훅뿐이고, 여기에는 **규칙, 시간, 시간대, 예정 동작**만 들어갑니다. 사이트 이름, URL, 제목은 넣지 않습니다.
+- 5단계에서 에이전트에게 줄 도구도 진행 중인 개입의 ID만 받고, 응답에 URL이나 경로를 넣지 않도록 설계했습니다.
+- 브라우저 밖 앱의 창 제목(제목 없는 메모장의 첫 줄, 카카오톡 대화 상대 이름 등)은 저장하지 않습니다. 이 규칙 전에 쌓인 기록은 `npm run redact-titles`로 정리할 수 있습니다.
+- 30일이 지난 원시 텍스트(제목, 전체 URL, 경로)는 도메인과 카테고리만 남깁니다.
+
+자세한 내용은 [docs/privacy-design.md](docs/privacy-design.md)에 있습니다.
+
+---
+
+## 🗺️ 진행 상황
+
+| 단계 | 내용 | 상태 |
+| --- | --- | --- |
+| 0~2 | collector 정리, 1분 판정과 활동 추적, R2 기준선과 하루 요약 | ✅ |
+| 3 | 규칙 엔진 (R1·R2·R3), 개입 상태 관리, OpenClaw 메시지 | ✅ |
+| 4 | 크롬 확장 연동, 배너·탭 정리·생산 모드 실행기, 일시 정지 (실제 브라우저 시나리오 A~J 통과) | ✅ |
+| 5 | OpenClaw 도구(MCP): 디스코드 대화로 정지·재개·상태 확인, 에이전트 실행과 fallback | 진행 예정 |
+| 6 | CLI 정지·상태, 데모 값 조정, 평가 리포트 (행동 전환율, agent/fallback 비율) | 예정 |
+
+---
+
+## 📐 연구 범위
+
+이 프로젝트는 **한 사람의 실제 PC 사용 데이터를 바탕으로 한 사례 연구**입니다.
+
+- **기준선과 데모:** R2의 "평소 공부량"은 본인 데이터(익명화 사본)로 계산하고, 데모에서는 이 데이터를 최근 날짜로 옮겨 씁니다.
+- **검증:** 개입 동작은 실제 브라우저 시나리오로 확인했고([docs/test-scenarios.md](docs/test-scenarios.md)), 활동 분류 정확도와 규칙 발동 빈도는 아래 공개 PC 데이터셋으로 확인합니다.
+- **범위 밖:** 여러 사용자에 대한 개입 효과, 장기간 사용에 따른 습관 변화는 다루지 않으며 향후 과제로 남깁니다.
+
+---
+
+## 📦 데이터셋
+
+### 익명화 데이터
+
+실제 수집한 데이터(이벤트 164,551건, 탐지 패턴 607건, 알림 10건)를 익명화해 `dataset/pattern-bridge-anon.sqlite`로 포함했습니다.
+
+- **유지:** 이벤트 종류, 발생 시각, 앱 이름, 탐지 패턴, 알림 로그
+- **제거:** 창 제목, 파일 경로(확장자만 남김), 브라우저 URL(도메인만 남김)
+- **추가:** 활동 카테고리 `category`(`entertainment`, `sns`, `study`, `work`, `leisure`, `exercise`, `communication`, `shopping`, `finance`, `search`, `system`, `other`)와, 해당하면 세부 분류 `subcategory`(`shortform`, `video`, `game`, `webtoon` 등)
+
+카테고리 규칙은 `config/categories.json`에 있고, 위에서부터 순서대로 검사해 처음 맞는 규칙을 적용합니다. 익명화 사본은 `python scripts/anonymize-data.py`로 다시 만들 수 있습니다. 시연용 소량 DB는 `dataset/pattern-bridge-demo-anon.sqlite`(이벤트 692건)입니다.
+
+이 DB로 대시보드를 바로 열려면:
+
+```cmd
+set DB_PATH=dataset/pattern-bridge-anon.sqlite
+npm run ui
+```
+
+### 공개 PC 데이터셋
+
+변환 스크립트는 `scripts/import-public-pc.py`입니다. 타임스탬프는 주 단위로 옮겨 시간대와 요일을 그대로 유지했습니다.
+
+| 데이터셋 | 폴더 | 내용 | 라이선스 |
+| --- | --- | --- | --- |
+| [Labelled AWT](https://github.com/project-pivot/labelled-awt-data) (Beerepoot, 2024) | `dataset/public/awt/` | 1명의 4주 치 활성 창 로그 10,066건. 창마다 수동으로 단 활동 라벨이 있음 | GPL-3.0 |
+| [SWELL-KW](https://doi.org/10.17026/dans-x55-69zp) (Koldijk 외, 2014) | `dataset/public/swell/` | 25명이 휴식, 보통, 방해, 시간 압박 조건에서 일할 때의 분 단위 키보드·마우스·앱 전환 특징 3,139분 | CC BY-NC-SA 4.0 |
+| [GESIS Web Tracking](https://zenodo.org/records/4757574) (Kulshrestha 외, 2021) | `dataset/public/gesis/` | 독일 사용자 2,148명의 한 달 치 웹 방문 9,151,243건. 도메인마다 41종 카테고리가 붙어 있음 | CC BY-NC 4.0 |
+| BEHACOM (PC 사용 행동, 12명) | `dataset/public/behacom/` | 변환 DB 이벤트 40,581건 | 원본 데이터셋 조건 |
+
+- GESIS는 원본 `browsing.csv`(680MB)에서 쓰는 컬럼만 남겨 `browsing-compact.csv.gz`(49MB)로 넣었습니다. 9,151,243건 전체가 들어 있습니다.
+- `pattern-bridge-gesis-sample50.sqlite`는 사용자 50명을 시드 고정으로 뽑은 표본입니다(208,054건). 인원을 바꾸려면 아래처럼 다시 만듭니다.
+
+```cmd
+set GESIS_USERS=50
+python scripts/import-public-pc.py gesis dataset/public/gesis dataset/public/gesis/pattern-bridge-gesis-sample50.sqlite
+```
+
+> OpenClaw는 PC에서 동작하므로 폰 데이터셋(LSApp, LiveLab)은 포함하지 않습니다.
+
+---
+
+## 🔄 이전 방향: 루틴 놓침 알림
+
+처음에는 **평소 루틴을 놓쳤을 때 먼저 알려 주는** 분석 레이어였습니다. 3가지 알고리즘 앙상블(베이지안 시간대 분석 40%, PrefixSpan 시퀀스 마이닝 35%, FFT 주기 분석 25%)로 "매일 9시에 Chrome을 연다" 같은 패턴을 찾고, 예상 시간이 지나도 그 앱을 쓰지 않으면 알림을 보냈습니다.
+
+방향을 바꾼 이유는 두 가지입니다.
+
+- 몇 달 사이 AI 에이전트가 크게 발전하면서, 패턴을 분석해 알려 주는 것만으로는 충분하지 않게 됐습니다.
+- 알림에서 그치지 않고, 탭을 정리하고 공부할 창을 여는 것처럼 **직접 행동하는** 에이전트를 만들고자 했습니다.
+
+패턴 엔진 코드(`src/analyzer`, `src/scheduler`)는 비교 근거로 남겨 두었고, 기능은 꺼져 있습니다. `npm run check`, `npm run eval-report`, `npm run ablation`으로 결과를 볼 수 있습니다.
+
+---
+
+## ⚙️ 기술 스택
+
+- **언어·런타임:** TypeScript, Node.js
+- **DB:** SQLite (better-sqlite3)
+- **수집:** active-win, uiohook-napi, chokidar
+- **브라우저:** 크롬 확장 (Manifest V3), WebSocket
+- **백그라운드:** PM2
+- **UI:** Electron
+- **AI 에이전트:** OpenClaw + Gemini
+- **알림:** 디스코드
 
 ---
 
