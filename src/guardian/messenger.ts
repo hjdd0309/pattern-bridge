@@ -37,7 +37,7 @@ export function buildMessage(it: Intervention): string {
     lines.push(`예정 동작: ${grace}초 뒤 오락 탭을 정리합니다. 화면에도 카운트다운이 표시됩니다.`);
     lines.push("사용자에게 정리 예정임을 알리고 잠깐 쉬어 가자고 권해 주세요.");
   } else if (it.rule === "R2") {
-    lines.push(`상황: 오늘 공부·작업 시간이 ${minutesText(Number(p["productive"] ?? 0))}으로, 평소 이 시각(${String(p["hour"])}시)까지의 ${minutesText(Number(p["target"] ?? 0))}보다 많이 부족합니다.`);
+    lines.push(`상황: 오늘 공부·작업 시간이 ${minutesText(Number(p["productive"] ?? 0))}으로, 평소 이 시각(${String(p["hour"])}시${p["minute"] ? ` ${String(p["minute"])}분` : ""})까지의 ${minutesText(Number(p["target"] ?? 0))}보다 많이 부족합니다.`);
     lines.push(`예정 동작: ${grace}초 뒤 생산 모드를 켭니다 (오락 탭 정리, 창 최소화, 평소 쓰던 작업 창 열기).`);
     lines.push("사용자를 다그치지 말고 지금 시작해 보자고 독려해 주세요.");
   } else {

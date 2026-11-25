@@ -48,6 +48,19 @@ export function cumulativeByHour(stats: DayStats, startHour: number): Record<str
   return out;
 }
 
+/**
+ * Usual productive minutes from the day start up to `at`, interpolated within
+ * the clock hour (15:30 is halfway between the values for 15 and 16).
+ */
+export function usualBy(set: BaselineSet, startHour: number, at: number): number {
+  const d = new Date(at);
+  const hours = dayHours(startHour);
+  const i = hours.indexOf(d.getHours());
+  const from = set.cumulativeAt[String(hours[i])] ?? 0;
+  const to = i + 1 < hours.length ? (set.cumulativeAt[String(hours[i + 1])] ?? from) : set.dailyMedian;
+  return from + (to - from) * (d.getMinutes() / 60);
+}
+
 function buildSet(days: DayStats[], startHour: number): BaselineSet {
   const cumulatives = days.map((d) => cumulativeByHour(d, startHour));
   const cumulativeAt: Record<string, number> = {};

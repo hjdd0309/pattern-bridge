@@ -1,9 +1,9 @@
 /**
- * Demo aid: asks the running guardian to evaluate a rule on its next minute
- * tick instead of waiting (R2 normally runs only on the hour).
+ * Demo aid for R2 on the guardian's next minute tick.
  *
- *   npm run guardian:trigger -- R2           check R2 now (fires only if productive time is short)
- *   npm run guardian:trigger -- R2 --force   fire R2 now regardless of today's productive time
+ *   npm run guardian:trigger -- R2           check R2 as usual, and log why it did or did not fire
+ *   npm run guardian:trigger -- R2 --force   fire R2 regardless of productive time, cooldown and
+ *                                            what the user is doing (except exercising)
  *
  * Works only when demo mode is on (config/intervention.json → demo.enabled).
  */
