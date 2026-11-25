@@ -7,7 +7,6 @@
 ![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-MV3-4285F4?logo=googlechrome&logoColor=white)
 ![OpenClaw](https://img.shields.io/badge/agent-OpenClaw-FF6B35)
 ![Discord](https://img.shields.io/badge/notify-Discord-5865F2?logo=discord&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green)
 
 지금의 AI 에이전트는 사용자가 말해야 움직입니다. 그런데 새벽까지 쇼츠를 보거나 할 일을 미루는 문제는, 사용자가 스스로 알아차리지 못하거나 알아도 도와 달라고 하지 않는 순간에 생깁니다.
 
@@ -281,9 +280,3 @@ python scripts/import-public-pc.py gesis dataset/public/gesis dataset/public/ges
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-FF6B35?style=for-the-badge)
 ![Gemini](https://img.shields.io/badge/Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)
 ![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)
-
----
-
-## 📄 라이선스
-
-MIT
