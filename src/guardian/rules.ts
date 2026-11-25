@@ -29,8 +29,11 @@ export async function evaluateR1(ctx: Context, now: number): Promise<void> {
   if (activeInterventions().some((it) => it.rule === "R1" || it.rule === "R2")) return;
 
   // Re-opened entertainment shortly after R1 closed it: short grace.
+  // The minute that contains the closing still shows the entertainment from
+  // before it, so only minutes that started after the closing count.
   const last = latestExecuted("R1");
   if (last?.executedAt && now - last.executedAt < r1.reopenWindowMinutes * MINUTE_MS) {
+    if ((ctx.current?.minuteStart ?? 0) < last.executedAt) return;
     notify(await startIntervention("R1", { reopen: true, streakMinutes: ctx.streakMinutes, previous: last.id }, r1.reopenGraceSeconds * 1000, now), now);
     return;
   }
