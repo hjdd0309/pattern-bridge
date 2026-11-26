@@ -19,6 +19,8 @@ export type Plan = Record<string, unknown> & {
   cancelAt?: number;
   /** Set when the agent asked for execution (tool call); see step 5. */
   agentRequestedAt?: number;
+  /** When the user pressed "close now" on the banner. */
+  closedNowAt?: number;
 };
 
 export type Intervention = {
@@ -97,11 +99,6 @@ export function activeInterventions(): Intervention[] {
 }
 
 /**
- * The latest regular R1 that has ended (tabs closed, or cancelled because the
- * user stayed away until the deadline), with the time it ended. Re-warnings
- * (plan.rewarn) are skipped: they never start a rest period of their own.
- */
-/**
  * The latest R2 that starts a cooldown: focus mode ran (or failed to), or the
  * user started working during grace. Cancels for other reasons (pause, sleep,
  * collector down) do not count.
@@ -121,6 +118,11 @@ export function latestEndedR2(): { it: Intervention; endedAt: number } | null {
   return { it, endedAt: it.executedAt ?? it.graceUntil ?? it.decidedAt };
 }
 
+/**
+ * The latest regular R1 that has ended (tabs closed, or cancelled because the
+ * user stayed away until the deadline), with the time it ended. Re-warnings
+ * (plan.rewarn) are skipped: they never start a rest period of their own.
+ */
 export function latestEndedR1(): { it: Intervention; endedAt: number } | null {
   const r = getDb()
     .prepare(`
@@ -160,16 +162,6 @@ export function resumeIntervention(id: number, now: number): void {
       WHERE id = ? AND status = 'paused'
     `)
     .run(now, id);
-}
-
-/** Moves the deadline to `now` (banner "close now"); a paused one becomes pending again. */
-export function expediteIntervention(id: number, now: number): boolean {
-  return getDb()
-    .prepare(`
-      UPDATE interventions SET status = 'pending', grace_until = ?, paused_remaining = NULL
-      WHERE id = ? AND status IN ('pending', 'paused')
-    `)
-    .run(now, id).changes > 0;
 }
 
 export function updatePlan(id: number, patch: Partial<Plan>): void {
