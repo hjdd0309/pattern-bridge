@@ -29,6 +29,14 @@ function extensionId(): string {
   }
 }
 
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+}
+
 export const config = {
   extension: {
     id: extensionId(),
@@ -37,6 +45,15 @@ export const config = {
     collectPort: 7701,
     /** guardian's WebSocket server for commands to the extension. */
     commandPort: 7702,
+  },
+
+  mcp: {
+    /** guardian's MCP server (Streamable HTTP) that the agent (OpenClaw) calls. 127.0.0.1 only. */
+    port: 7703,
+    /** Name it is registered under in OpenClaw (mcp.servers.<name>); tools are <name>__<tool>. */
+    serverName: "guardian",
+    /** Bearer token the agent sends; the server does not start without it. */
+    token: process.env["GUARDIAN_MCP_TOKEN"] ?? "",
   },
 
   db: {
@@ -56,6 +73,13 @@ export const config = {
     // OpenClaw can take well over 5s to admit a hook request. Timing out early
     // makes the caller treat a delivered message as failed and resend it.
     timeoutMs: Number(process.env["OPENCLAW_TIMEOUT_MS"]) || 30_000,
+    // Gateway HTTP API (POST /tools/invoke) for running an intervention's tool
+    // without an LLM turn. Defaults to the webhook's host. The token is the
+    // Gateway's own (gateway.auth.token): owner-level, keep it local.
+    gatewayUrl: process.env["OPENCLAW_GATEWAY_URL"] || originOf(process.env["OPENCLAW_WEBHOOK_URL"] ?? ""),
+    gatewayToken: process.env["OPENCLAW_GATEWAY_TOKEN"] ?? "",
+    // After this the guardian runs the action itself (fallback).
+    invokeTimeoutMs: Number(process.env["OPENCLAW_INVOKE_TIMEOUT_MS"]) || 5_000,
   },
 
   scheduler: {

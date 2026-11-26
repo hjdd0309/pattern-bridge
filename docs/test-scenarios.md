@@ -292,13 +292,88 @@ npm run guardian:dev
 
 - **판정은 1분 단위**: 매분 정각 + 3초에 직전 1분을 판정하므로, 조건을 채운 뒤 배너까지 최대 1~2분 걸린다.
 - **1분 판정 = 가장 오래 앞에 있던 활동**: 로그를 보느라 cmd 창을 오래 앞에 두면 그 1분은 생산(work)으로 잡힌다. 시나리오 중에는 크롬을 앞에 둘 것. cmd를 10분 넘게 연속으로 보면 오락 연속 시간이 초기화된다.
-- **디스코드 메시지 한도**: 분당 1회. 같은 분에 개입이 겹치면 뒤의 메시지는 보내지 않는다 (`[messenger] ... minute_cap`).
+- **디스코드 메시지 한도**: 분당 1회, 하루 40회. R1·R2 예고는 분당 한도를 받지 않고, R3 제안과 정지 끝 알림은 한도에 걸리면 1분을 기다렸다 보낸다 (`minute cap, sending in …`).
 - **판정은 앞에 있는 창 하나 기준**: 창 두 개를 나란히 띄우면 마지막으로 클릭한 창만 본다. 한 창에 탭이 여러 개면 보고 있는 탭 하나만 본다.
 - **확장이 연결돼 있지 않으면** 배너 없이 개입이 실행 실패로 취소된다 (`cancelled: execution_failed`). 팝업 연결 상태부터 확인.
 - 모든 개입은 DB의 `interventions` 테이블에 상태·실행 주체·결과와 함께 남는다.
 
 ---
 
-## 5. 이후 단계 시나리오 (추가 예정)
+## 5. 5단계 시나리오: OpenClaw 연동
 
-- 5단계 `feat/guardian-agent-tools`: OpenClaw 도구로 실행 (agent), 유예 끝까지 호출 없으면 fallback, 디스코드 대화로 정지·재개·상태 확인
+준비는 [openclaw-setup.md](openclaw-setup.md)를 따른다 (OpenClaw 2026.11.10 이상, MCP 서버 등록, 도구 권한, 디스코드 허용 목록, 에이전트 지침 파일). guardian 첫 줄 근처에 `[mcp] agent tools on http://127.0.0.1:7703/mcp`가 보여야 하고, 디스코드에서 봇이 온라인이어야 한다.
+
+실행 주체(`executed_by`)는 개입 기록에서 확인한다.
+
+```cmd
+node -e "const D=require('better-sqlite3');const db=new D('data/pattern-bridge.sqlite',{readonly:true});console.table(db.prepare('select id,rule,status,executed_by,cancel_reason from interventions order by id desc limit 5').all())"
+```
+
+### K. 규칙 실행이 OpenClaw를 거치는지
+
+- **목적**: 유예 마감 때 guardian이 OpenClaw Gateway(`/tools/invoke`)로 바른생활지킴이 도구를 부르고, 그 도구가 실행하는지 (LLM 없음)
+- **절차**: A처럼 R1을 걸고 카운트다운이 끝날 때까지 쇼츠에 머문다
+- **기대 결과**
+  - 오락 탭이 닫히고, 개입 기록이 `executed_by = gateway`
+  - 디스코드 알림은 지금처럼 온다 (도구 호출 없음)
+- **확인할 로그**: `#N R1 executed by gateway`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
+### L. 배너 "지금 닫기"도 OpenClaw를 거치는지
+
+- **목적**: 배너 버튼으로 실행해도 같은 경로(Gateway → 도구)로 가는지
+- **절차**: A처럼 R1을 걸고 배너의 **지금 닫기** 클릭
+- **기대 결과**: 바로 오락 탭이 닫히고 `executed_by = gateway`
+- **확인할 로그**: `#N close-now requested from banner` → `#N R1 executed by gateway`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
+### M. 디스코드 대화로 상태 확인
+
+- **목적**: 에이전트가 사용자의 말을 이해해 지킴이 도구를 고르는지
+- **절차**: 디스코드에서 `/new` → "지금 상태 어때?" → (R1 유예 중에) 한 번 더 "지금 상태 어때?"
+- **기대 결과**
+  - 진행 중인 개입이 없으면 없다고, R1 유예 중이면 남은 시간을 말한다
+  - 일시 정지 여부도 말한다
+  - 사이트 이름이나 URL은 말하지 않는다
+  - 답까지 20초 안팎 ("작업 중" 메시지가 먼저 뜨고 답으로 바뀜)
+- **확인할 것**: OpenClaw 세션 기록에 `guardian__get_intervention`, `guardian__get_pause_status` 호출 (`session_status`, `tool_search` 없이)
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
+### N. 디스코드 대화로 정지와 재개
+
+- **목적**: "멈춰 줘", "다시 켜 줘"가 팝업 정지와 똑같이 동작하는지
+- **절차**
+  1. R1 배너가 떠 있을 때 디스코드에 "10분만 멈춰 줘"
+  2. 확장 팝업을 연다
+  3. 디스코드에 "다시 켜 줘"
+- **기대 결과**
+  - 진행 중이던 R1이 취소되고 배너가 사라진다 (`cancelled: guardian_paused`)
+  - 팝업에 "일시 정지 중 (시각)", 끝나는 시각은 약 10분 뒤
+  - 다시 켜면 팝업이 "개입 동작 중"
+- **확인할 로그**: `[pause] paused by agent until …` → `[pause] resumed by agent`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
+### O. 디스코드 대화로 "지금 닫아 줘"
+
+- **목적**: 사용자가 대화로 시킨 실행이 바로 되고 `agent`로 기록되는지
+- **절차**
+  1. R1 배너가 떠 있을 때 디스코드에 "지금 닫아 줘"
+  2. 진행 중인 개입이 없을 때 한 번 더 "지금 닫아 줘"
+- **기대 결과**
+  - 1: 유예를 기다리지 않고 오락 탭이 닫히고 `executed_by = agent`
+  - 2: 진행 중인 개입이 없다고 답하고 아무것도 닫지 않는다
+- **확인할 로그**: `#N R1 run requested by agent` → `#N R1 executed by agent`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
+### P. OpenClaw가 꺼져 있을 때
+
+- **목적**: OpenClaw 경로가 실패해도 개입이 빠지지 않는지
+- **절차**
+  1. `openclaw gateway stop --force`
+  2. A처럼 R1을 걸고 카운트다운이 끝날 때까지 머문다
+  3. 끝나면 `openclaw gateway start`로 다시 켠다 (디스코드 연결까지 2~3분)
+- **기대 결과**
+  - 마감에 오락 탭이 닫히고 `executed_by = fallback`
+  - 디스코드 알림은 오지 않는다 (guardian 로그에 메시지 실패)
+- **확인할 로그**: `#N OpenClaw route failed (gateway unreachable), running it directly` → `#N R1 executed by fallback`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:

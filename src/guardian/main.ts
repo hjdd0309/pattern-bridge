@@ -6,6 +6,7 @@ import { getConfig } from "./config.js";
 import { onNewDay } from "./daily.js";
 import { setExecutor } from "./executor.js";
 import { startExtensionLink } from "./extension-link.js";
+import { startMcpServer } from "./mcp-server.js";
 import { RealExecutor } from "./real-executor.js";
 import { recordOutcomes, recover, registerExtensionHandlers, step, STEP_MS } from "./manager.js";
 import { evaluateRules } from "./rules.js";
@@ -114,6 +115,7 @@ export function startGuardian(): void {
     console.error("[guardian] daily work failed:", err instanceof Error ? err.message : err);
   }
   startExtensionLink();
+  startMcpServer();
   setExecutor(new RealExecutor());
   registerExtensionHandlers();
   recover(Date.now())

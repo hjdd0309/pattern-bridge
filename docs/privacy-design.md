@@ -130,6 +130,27 @@ pattern engine (app name, hour, sequence array, per-algorithm scores). At no
 point does any code path forward the contents of `user_events` (raw window
 titles, URLs, or event-level timestamps) to `sendWebhook()`.
 
+### 3-1. Guardian (바른생활지킴이) and the agent tools
+
+The guardian sends the agent only a summary per intervention: rule, minutes,
+time of day and the planned action (`buildMessage()` in
+`src/guardian/messenger.ts`). Site names, URLs and titles are never part of it.
+
+The agent can also call the guardian's own MCP tools
+(`src/guardian/mcp-server.ts`, see `docs/openclaw-setup.md`):
+
+- The server listens on `127.0.0.1` only, requires a Bearer token, and rejects
+  browser requests (`Origin` header) and foreign `Host` names.
+- Arguments are an intervention ID, a pause preset or a number of minutes.
+- Answers carry rules, states, seconds left and times only. Plan contents such
+  as R2's workspace URLs and file paths are never returned.
+- The action tools only run an intervention that the rules already started;
+  they cannot create one.
+
+When a rule's action runs through OpenClaw (Gateway `POST /tools/invoke`), the
+request names a tool and an intervention ID — nothing else. The Gateway token
+used for it is owner-level and is read from `.env` only.
+
 ## 4. Local storage summary
 
 | Store | Location | Leaves the device? |

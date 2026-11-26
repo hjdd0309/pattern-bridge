@@ -7,18 +7,22 @@ import { getDb } from "../db/schema.js";
 //   paused   — the user left the trigger during grace; paused_remaining holds
 //              the time left. Resumes if the user comes back before the
 //              original deadline (plan.cancelAt), otherwise it is cancelled.
-//   executed — the action ran (executed_by: agent | fallback | message)
+//   executed — the action ran (executed_by: gateway | agent | fallback | message)
 //   cancelled — cancel_reason says why
 
 export type Rule = "R1" | "R2" | "R3";
 export type Status = "pending" | "paused" | "executed" | "cancelled";
-export type ExecutedBy = "agent" | "fallback" | "message";
+/**
+ * gateway  — a rule's action, run through OpenClaw (Gateway /tools/invoke → MCP tool)
+ * agent    — the user asked the agent in chat (LLM → MCP tool)
+ * fallback — the OpenClaw route failed, so the guardian ran it itself
+ * message  — R3: the message is the whole intervention
+ */
+export type ExecutedBy = "gateway" | "agent" | "fallback" | "message";
 
 export type Plan = Record<string, unknown> & {
   /** Original deadline: a paused intervention is cancelled after this. */
   cancelAt?: number;
-  /** Set when the agent asked for execution (tool call); see step 5. */
-  agentRequestedAt?: number;
   /** When the user pressed "close now" on the banner. */
   closedNowAt?: number;
 };

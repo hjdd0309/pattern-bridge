@@ -13,6 +13,7 @@
     "ablation": "tsx scripts/run-ablation.ts",
     "demo-db": "tsx scripts/prepare-demo-db.ts",
     "redact-titles": "tsx scripts/redact-titles.ts",
+    "openclaw:workspace": "tsx scripts/openclaw-workspace.ts",
     "ui": "electron src/ui/main.cjs",
     "start:all": "pm2 start ecosystem.config.cjs",
     "collector:start": "pm2 start ecosystem.config.cjs --only pattern-bridge-collector",
@@ -35,6 +36,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "active-win": "^8.2.1",
     "axios": "^1.16.1",
     "better-sqlite3": "^12.10.0",
@@ -43,7 +45,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "uiohook-napi": "^1.5.5",
-    "ws": "^8.23.0"
+    "ws": "^8.23.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/axios": "^0.9.36",

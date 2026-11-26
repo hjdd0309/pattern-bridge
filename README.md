@@ -59,11 +59,11 @@ guardian: R1 발동 (오락 연속 40분)
 사용자의 화면을 직접 건드리는 에이전트라서, "먼저 움직이는 것"만큼 "선을 넘지 않는 것"이 중요합니다.
 
 - **판단은 LLM이 아니라 규칙이 합니다.** 개입 여부는 `config/intervention.json`의 기준으로만 정해지고, 같은 상황이면 항상 같은 결과가 나옵니다.
-- **좁은 도구만 줍니다.** 탭 닫기와 배너는 우리 크롬 확장이 정해진 명령만 실행합니다. 에이전트에게도 셸·파일·브라우저 같은 넓은 기본 도구 대신, 진행 중인 개입의 ID만 받는 지킴이 전용 도구를 줍니다 (5단계).
+- **좁은 도구만 줍니다.** 탭 닫기와 배너는 우리 크롬 확장이 정해진 명령만 실행합니다. 에이전트에게도 셸·파일·브라우저 같은 넓은 기본 도구는 끄고, 규칙이 이미 시작한 개입만 실행하거나 정지·재개·상태 조회만 하는 바른생활지킴이 MCP 도구 6개만 줍니다.
 - **민감한 내용은 LLM으로 보내지 않습니다.** 웹훅에는 규칙, 시간, 시간대, 예정 동작만 들어가고 URL·제목·사이트 이름은 빠집니다.
 - **되돌릴 틈을 줍니다.** 모든 강제 동작 전에 5분 카운트다운이 있고, 오락에서 벗어나면 멈추며, '지금 닫기'로 바로 끝낼 수도 있습니다.
 - **사용자가 끌 수 있습니다.** 확장 팝업에서 30분, 1시간, 오늘, 직접 켤 때까지 개입을 멈출 수 있습니다.
-- **에이전트가 실패해도 빠지지 않습니다.** OpenClaw가 늦거나 응답이 없어도, 유예가 끝나면 guardian 실행기가 정해진 동작을 직접 수행합니다.
+- **에이전트가 실패해도 빠지지 않습니다.** 유예가 끝나면 OpenClaw Gateway를 거쳐 지킴이 도구로 실행하고(LLM 없음), OpenClaw가 꺼져 있거나 5초 안에 응답이 없으면 guardian 실행기가 직접 수행합니다.
 - **연결은 잠가 둡니다.** 크롬 확장 ID를 고정하고, 수집 엔드포인트는 확장 Origin과 토큰을 검사합니다.
 
 판단과 도구가 모두 거름망 쪽에 있어서, 에이전트를 다른 것으로 바꿔도 판단 로직은 그대로입니다.
@@ -109,14 +109,19 @@ flowchart LR
   COL --> DB
   DB -- "1분마다" --> JUDGE
   JUDGE --> RULES --> MGR
+  MCP["바른생활지킴이<br>MCP 도구"]
   MGR -- "웹훅: 규칙·시간 요약만" --> OC --> DC
-  MGR -- "유예 끝 (fallback)" --> EXEC
+  DC -- "대화: 멈춰 줘, 지금 닫아 줘" --> OC
+  MGR -- "유예 끝: /tools/invoke" --> OC
+  OC -- "도구 호출" --> MCP --> EXEC
+  MGR -. "OpenClaw 실패 시 (fallback)" .-> EXEC
   EXEC -- "WebSocket: 정해진 명령" --> EXT
   EXEC -- "PowerShell: 창 최소화 · 문서 열기" --> OS
 ```
 
 - **collector**와 **guardian**은 별도 프로세스입니다. 네이티브 모듈(창 감지, 입력 훅)이 있는 수집 쪽이 죽어도 판단·실행 상태가 지켜지도록 나눴고, 둘은 SQLite로만 연결됩니다.
 - 크롬 확장은 탭 상태를 collector에 보고하고, guardian의 정해진 명령(탭 목록, 탭 닫기·열기, 배너, 알림)만 실행합니다.
+- guardian은 바른생활지킴이 MCP 서버(`127.0.0.1:7703`)를 열고, OpenClaw는 이 서버의 도구로 개입을 실행하거나 디스코드 대화를 처리합니다. 설정은 [docs/openclaw-setup.md](docs/openclaw-setup.md)에 있습니다.
 
 ```
 pattern-bridge/
@@ -129,8 +134,9 @@ pattern-bridge/
 │   └── ui/               # Electron 대시보드
 ├── browser-extension/    # 크롬 계열 확장 (Manifest V3)
 ├── config/               # categories.json (분류), intervention.json (개입 정책)
+├── openclaw/workspace/   # OpenClaw 에이전트 지침 파일 (npm run openclaw:workspace로 복사)
 ├── scripts/              # 데모 DB, R2 수동 실행, 창 제목 정리, 데이터셋 변환
-├── docs/                 # 테스트 시나리오, 프라이버시 설계
+├── docs/                 # 테스트 시나리오, 프라이버시 설계, OpenClaw 연동 설정
 └── ecosystem.config.cjs  # PM2 (collector, guardian)
 ```
 
@@ -159,6 +165,10 @@ copy .env.example .env
 | `OPENCLAW_WEBHOOK_URL`, `OPENCLAW_TOKEN` | OpenClaw 웹훅 주소와 토큰 |
 | `NOTIFY_CHANNEL`, `NOTIFY_TO` | `discord`와 메시지를 받을 디스코드 채널 ID (비어 있으면 메시지를 보내지 않음) |
 | `EXTENSION_TOKEN` | 크롬 확장과 연결할 아무 긴 무작위 문자열 |
+| `GUARDIAN_MCP_TOKEN` | 바른생활지킴이 MCP 서버 토큰 (OpenClaw 설정에도 같은 값) |
+| `OPENCLAW_GATEWAY_TOKEN` | OpenClaw Gateway 토큰. 규칙 실행을 OpenClaw 경유로 보낼 때 씀 |
+
+OpenClaw 쪽 설정(MCP 서버 등록, 도구 권한, 디스코드 허용 목록, 에이전트 지침)은 [docs/openclaw-setup.md](docs/openclaw-setup.md)를 따릅니다.
 
 ### 실행
 
@@ -200,7 +210,7 @@ npm run start:all
 
 - 모든 데이터는 **로컬 SQLite에만** 저장됩니다.
 - 외부로 나가는 건 OpenClaw로 보내는 웹훅뿐이고, 여기에는 **규칙, 시간, 시간대, 예정 동작**만 들어갑니다. 사이트 이름, URL, 제목은 넣지 않습니다.
-- 5단계에서 에이전트에게 줄 도구도 진행 중인 개입의 ID만 받고, 응답에 URL이나 경로를 넣지 않도록 설계했습니다.
+- 에이전트가 쓰는 바른생활지킴이 도구는 개입 ID와 정해진 값만 받고, 응답에 URL·창 제목·경로를 넣지 않습니다.
 - 브라우저 밖 앱의 창 제목(제목 없는 메모장의 첫 줄, 카카오톡 대화 상대 이름 등)은 저장하지 않습니다. 이 규칙 전에 쌓인 기록은 `npm run redact-titles`로 정리할 수 있습니다.
 - 30일이 지난 원시 텍스트(제목, 전체 URL, 경로)는 도메인과 카테고리만 남깁니다.
 
@@ -215,7 +225,7 @@ npm run start:all
 | 0~2 | collector 정리, 1분 판정과 활동 추적, R2 기준선과 하루 요약 | ✅ |
 | 3 | 규칙 엔진 (R1·R2·R3), 개입 상태 관리, OpenClaw 메시지 | ✅ |
 | 4 | 크롬 확장 연동, 배너·탭 정리·생산 모드 실행기, 일시 정지 (실제 브라우저 시나리오 A~J 통과) | ✅ |
-| 5 | OpenClaw 도구(MCP): 디스코드 대화로 정지·재개·상태 확인, 에이전트 실행과 fallback | 진행 예정 |
+| 5 | 바른생활지킴이 MCP 서버, 규칙 실행의 OpenClaw Gateway 경유와 fallback, 디스코드 대화로 정지·재개·상태·지금 닫기 | 구현 완료, 실사용 시나리오 K~P 예정 |
 | 6 | CLI 정지·상태, 데모 값 조정, 평가 리포트 (행동 전환율, agent/fallback 비율) | 예정 |
 
 ---
