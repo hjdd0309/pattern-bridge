@@ -1,6 +1,7 @@
 import { getDb } from "../db/schema.js";
 import { getConfig } from "./config.js";
 import { getExecutor } from "./executor.js";
+import { invokeTool } from "./gateway.js";
 import { onExtensionMessage } from "./extension-link.js";
 import { groupOf, isLockApp, type MinuteGroup } from "./groups.js";
 import {
@@ -67,6 +68,37 @@ export async function cancel(it: Intervention, reason: string, result?: Record<s
 // "close now", MCP tool) lives in this process, so this is enough to make a
 // second, late or concurrent request a no-op.
 const running = new Set<number>();
+
+// Interventions handed to OpenClaw right now (Gateway /tools/invoke). The MCP
+// tool call that comes back for one of these is the rule's own run (gateway),
+// not a chat request (agent). Only this process can set it, so the LLM cannot
+// pass itself off as the gateway.
+const dispatching = new Set<number>();
+
+const TOOL_FOR = { R1: "close_entertainment_tabs", R2: "start_focus_mode" } as const;
+
+/**
+ * Runs a rule's action through OpenClaw: Gateway /tools/invoke → our MCP tool
+ * → runIntervention(gateway). If that did not run it (OpenClaw down, error,
+ * timeout, no token), the guardian runs it itself (fallback). A call that
+ * arrives after the fallback is ignored by runIntervention.
+ */
+export async function dispatch(id: number, now: number): Promise<boolean> {
+  if (running.has(id) || dispatching.has(id)) return false;
+  const it = getIntervention(id);
+  if (!it || (it.status !== "pending" && it.status !== "paused") || it.rule === "R3") return false;
+  dispatching.add(id);
+  try {
+    await invokeTool(TOOL_FOR[it.rule], { interventionId: id });
+  } catch (err) {
+    console.warn(`[intervention] #${id} OpenClaw route failed (${err instanceof Error ? err.message : String(err)}), running it directly`);
+  } finally {
+    dispatching.delete(id);
+  }
+  const after = getIntervention(id);
+  if (after && after.status === "executed") return true;
+  return runIntervention(id, "fallback", now);
+}
 
 /**
  * Runs a pending or paused intervention's action once. Returns false when it
@@ -139,7 +171,7 @@ async function doStep(now: number): Promise<void> {
       continue;
     }
 
-    if (running.has(it.id)) continue;
+    if (running.has(it.id) || dispatching.has(it.id)) continue;
     if (it.rule === "R1") {
       if (it.status === "pending" && grp !== "entertainment") {
         pauseIntervention(it.id, now);
@@ -161,7 +193,7 @@ async function doStep(now: number): Promise<void> {
       await cancel(it, "user_started_productive");
       continue;
     }
-    if (deadlinePassed) await runIntervention(it.id, "fallback", now);
+    if (deadlinePassed) await dispatch(it.id, now);
   }
 }
 
@@ -174,7 +206,7 @@ export async function closeNow(id: number, now: number): Promise<boolean> {
   if (!it || (it.status !== "pending" && it.status !== "paused")) return false;
   updatePlan(id, { closedNowAt: now });
   console.log(`[intervention] #${id} close-now requested from banner`);
-  return runIntervention(id, "fallback", now);
+  return dispatch(id, now);
 }
 
 export type AgentRequest =
@@ -182,17 +214,19 @@ export type AgentRequest =
   | { ok: false; reason: "no_active_intervention" | "not_active" | "wrong_rule" };
 
 /**
- * An MCP tool asked to run a running R1/R2 now: the user asked the agent in
- * chat. Only a pending or paused intervention of the same rule is accepted;
- * without an id the running one of that rule is used.
+ * An MCP tool asked to run a running R1/R2 now: either the rule's own run that
+ * the guardian handed to OpenClaw (gateway), or the user asking the agent in
+ * chat (agent). Only a pending or paused intervention of the same rule is
+ * accepted; without an id the running one of that rule is used.
  */
 export async function requestByAgent(rule: "R1" | "R2", id: number | undefined, now: number): Promise<AgentRequest> {
   const it = id === undefined ? activeInterventions().find((x) => x.rule === rule) : getIntervention(id);
   if (!it) return { ok: false, reason: id === undefined ? "no_active_intervention" : "not_active" };
   if (it.rule !== rule) return { ok: false, reason: "wrong_rule" };
   if (it.status !== "pending" && it.status !== "paused") return { ok: false, reason: "not_active" };
-  console.log(`[intervention] #${it.id} ${rule} run requested by agent`);
-  const executedNow = await runIntervention(it.id, "agent", now);
+  const by: ExecutedBy = dispatching.has(it.id) ? "gateway" : "agent";
+  if (by === "agent") console.log(`[intervention] #${it.id} ${rule} run requested by agent`);
+  const executedNow = await runIntervention(it.id, by, now);
   return { ok: true, id: it.id, rule, executedNow };
 }
 
