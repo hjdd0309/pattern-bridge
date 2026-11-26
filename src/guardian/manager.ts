@@ -7,13 +7,14 @@ import {
   activeInterventions,
   cancelIntervention,
   createIntervention,
-  expediteIntervention,
+  getIntervention,
   markExecuted,
   outcomesDue,
   pauseIntervention,
   resumeIntervention,
   setOutcome,
   updatePlan,
+  type ExecutedBy,
   type Intervention,
   type Plan,
   type Rule,
@@ -27,7 +28,9 @@ import { collectorAliveFor, USER_ID } from "./tracker.js";
 //      come back before the original deadline, otherwise it is cancelled.
 //   R2 is cancelled as soon as the user starts productive work.
 //   At the deadline the action runs (executed_by: agent if the agent asked
-//   for it — step 5 — otherwise fallback).
+//   for it — step 5 — otherwise fallback). Every run goes through
+//   runIntervention, so a deadline and the banner's "close now" can never run
+//   the same intervention twice.
 // Also handles restarts, sleep, the pause switch and the 10-minute outcome.
 
 export const STEP_MS = 5_000;
@@ -61,17 +64,34 @@ export async function cancel(it: Intervention, reason: string, result?: Record<s
   if (it.status === "pending") await getExecutor().hideBanner(it);
 }
 
-async function execute(it: Intervention, now: number): Promise<void> {
-  const by = it.plan.agentRequestedAt ? "agent" : "fallback";
-  const res = await getExecutor().execute(it);
-  if (!res.ok) {
-    // e.g. the extension is not connected: record it; the rule fires again
-    // on a later tick if the situation persists.
-    await cancel(it, "execution_failed", res.detail);
-    return;
+// Interventions being run right now. Everything that runs one lives in this
+// process, so this is enough to make a second, late or concurrent request a
+// no-op.
+const running = new Set<number>();
+
+/**
+ * Runs a pending or paused intervention's action once. Returns false when it
+ * is not active any more or is already being run.
+ */
+export async function runIntervention(id: number, by: ExecutedBy, now: number): Promise<boolean> {
+  if (running.has(id)) return false;
+  const it = getIntervention(id);
+  if (!it || (it.status !== "pending" && it.status !== "paused")) return false;
+  running.add(id);
+  try {
+    const res = await getExecutor().execute(it);
+    if (!res.ok) {
+      // e.g. the extension is not connected: record it; the rule fires again
+      // on a later tick if the situation persists.
+      await cancel(it, "execution_failed", res.detail);
+      return false;
+    }
+    markExecuted(it.id, by, res.detail, now);
+    console.log(`[intervention] #${it.id} ${it.rule} executed by ${by}`);
+    return true;
+  } finally {
+    running.delete(id);
   }
-  markExecuted(it.id, by, res.detail, now);
-  console.log(`[intervention] #${it.id} ${it.rule} executed by ${by}`);
 }
 
 /** Restart recovery: drop what expired while the guardian was down, re-show banners for the rest. */
@@ -120,6 +140,7 @@ async function doStep(now: number): Promise<void> {
       continue;
     }
 
+    if (running.has(it.id)) continue;
     if (it.rule === "R1") {
       if (it.status === "pending" && grp !== "entertainment") {
         pauseIntervention(it.id, now);
@@ -141,7 +162,7 @@ async function doStep(now: number): Promise<void> {
       await cancel(it, "user_started_productive");
       continue;
     }
-    if (deadlinePassed) await execute(it, now);
+    if (deadlinePassed) await runIntervention(it.id, it.plan.agentRequestedAt ? "agent" : "fallback", now);
   }
 }
 
@@ -150,11 +171,11 @@ async function doStep(now: number): Promise<void> {
  * instead of waiting out the grace period.
  */
 export async function closeNow(id: number, now: number): Promise<boolean> {
-  if (!expediteIntervention(id, now)) return false;
+  const it = getIntervention(id);
+  if (!it || (it.status !== "pending" && it.status !== "paused")) return false;
   updatePlan(id, { closedNowAt: now });
   console.log(`[intervention] #${id} close-now requested from banner`);
-  await step(now);
-  return true;
+  return runIntervention(id, "fallback", now);
 }
 
 const PRESETS: readonly PausePreset[] = ["30m", "1h", "today", "manual"];
