@@ -39,6 +39,15 @@ export const config = {
     commandPort: 7702,
   },
 
+  mcp: {
+    /** guardian's MCP server (Streamable HTTP) that the agent (OpenClaw) calls. 127.0.0.1 only. */
+    port: 7703,
+    /** Name it is registered under in OpenClaw (mcp.servers.<name>); tools are <name>__<tool>. */
+    serverName: "guardian",
+    /** Bearer token the agent sends; the server does not start without it. */
+    token: process.env["GUARDIAN_MCP_TOKEN"] ?? "",
+  },
+
   db: {
     // DB_PATH lets a fresh clone run on dataset/pattern-bridge-anon.sqlite
     path: process.env["DB_PATH"]

@@ -27,10 +27,9 @@ import { collectorAliveFor, USER_ID } from "./tracker.js";
 //   R1 pauses while the user is away from entertainment and resumes if they
 //      come back before the original deadline, otherwise it is cancelled.
 //   R2 is cancelled as soon as the user starts productive work.
-//   At the deadline the action runs (executed_by: agent if the agent asked
-//   for it — step 5 — otherwise fallback). Every run goes through
-//   runIntervention, so a deadline and the banner's "close now" can never run
-//   the same intervention twice.
+//   At the deadline the action runs. Every run goes through runIntervention,
+//   so a deadline, the banner's "close now" and a tool call can never run the
+//   same intervention twice.
 // Also handles restarts, sleep, the pause switch and the 10-minute outcome.
 
 export const STEP_MS = 5_000;
@@ -64,9 +63,9 @@ export async function cancel(it: Intervention, reason: string, result?: Record<s
   if (it.status === "pending") await getExecutor().hideBanner(it);
 }
 
-// Interventions being run right now. Everything that runs one lives in this
-// process, so this is enough to make a second, late or concurrent request a
-// no-op.
+// Interventions being run right now. Everything that runs one (deadline,
+// "close now", MCP tool) lives in this process, so this is enough to make a
+// second, late or concurrent request a no-op.
 const running = new Set<number>();
 
 /**
@@ -162,7 +161,7 @@ async function doStep(now: number): Promise<void> {
       await cancel(it, "user_started_productive");
       continue;
     }
-    if (deadlinePassed) await runIntervention(it.id, it.plan.agentRequestedAt ? "agent" : "fallback", now);
+    if (deadlinePassed) await runIntervention(it.id, "fallback", now);
   }
 }
 
@@ -176,6 +175,25 @@ export async function closeNow(id: number, now: number): Promise<boolean> {
   updatePlan(id, { closedNowAt: now });
   console.log(`[intervention] #${id} close-now requested from banner`);
   return runIntervention(id, "fallback", now);
+}
+
+export type AgentRequest =
+  | { ok: true; id: number; rule: Rule; executedNow: boolean }
+  | { ok: false; reason: "no_active_intervention" | "not_active" | "wrong_rule" };
+
+/**
+ * An MCP tool asked to run a running R1/R2 now: the user asked the agent in
+ * chat. Only a pending or paused intervention of the same rule is accepted;
+ * without an id the running one of that rule is used.
+ */
+export async function requestByAgent(rule: "R1" | "R2", id: number | undefined, now: number): Promise<AgentRequest> {
+  const it = id === undefined ? activeInterventions().find((x) => x.rule === rule) : getIntervention(id);
+  if (!it) return { ok: false, reason: id === undefined ? "no_active_intervention" : "not_active" };
+  if (it.rule !== rule) return { ok: false, reason: "wrong_rule" };
+  if (it.status !== "pending" && it.status !== "paused") return { ok: false, reason: "not_active" };
+  console.log(`[intervention] #${it.id} ${rule} run requested by agent`);
+  const executedNow = await runIntervention(it.id, "agent", now);
+  return { ok: true, id: it.id, rule, executedNow };
 }
 
 const PRESETS: readonly PausePreset[] = ["30m", "1h", "today", "manual"];

@@ -12,13 +12,16 @@ import { getDb } from "../db/schema.js";
 
 export type Rule = "R1" | "R2" | "R3";
 export type Status = "pending" | "paused" | "executed" | "cancelled";
+/**
+ * agent    — the user asked the agent in chat (LLM → MCP tool)
+ * fallback — the guardian ran it itself (deadline or "close now")
+ * message  — R3: the message is the whole intervention
+ */
 export type ExecutedBy = "agent" | "fallback" | "message";
 
 export type Plan = Record<string, unknown> & {
   /** Original deadline: a paused intervention is cancelled after this. */
   cancelAt?: number;
-  /** Set when the agent asked for execution (tool call); see step 5. */
-  agentRequestedAt?: number;
   /** When the user pressed "close now" on the banner. */
   closedNowAt?: number;
 };
