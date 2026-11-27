@@ -245,10 +245,12 @@ const commandHandlers = {
       windowId = windowId ?? tab.windowId;
       opened++;
     }
-    // Focus mode minimizes everything first: bring the window with the new tabs back.
+    // Focus mode minimizes everything first: bring the window with the new tabs
+    // back, maximized. Restoring to 'normal' after the OS "minimize all" can
+    // come back at a tiny size in the top-left corner.
     if (windowId !== null) {
       try {
-        await chrome.windows.update(windowId, { state: 'normal', focused: true });
+        await chrome.windows.update(windowId, { state: 'maximized', focused: true });
       } catch { /* window gone */ }
     }
     return { opened };
