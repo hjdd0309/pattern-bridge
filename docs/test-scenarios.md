@@ -309,20 +309,47 @@ npm run guardian:dev
 node -e "const D=require('better-sqlite3');const db=new D('data/pattern-bridge.sqlite',{readonly:true});console.table(db.prepare('select id,rule,status,executed_by,cancel_reason from interventions order by id desc limit 5').all())"
 ```
 
-### K. 규칙 실행이 OpenClaw를 거치는지
+### 묶어서 하는 순서
 
-- **목적**: 유예 마감 때 guardian이 OpenClaw Gateway(`/tools/invoke`)로 바른생활지킴이 도구를 부르고, 그 도구가 실행하는지 (LLM 없음)
-- **절차**: A처럼 R1을 걸고 카운트다운이 끝날 때까지 쇼츠에 머문다
+R1은 끝나면 3분(데모) 쉬는 기간이 있어서, 한 번 걸린 R1로 여러 시나리오를 같이 본다. 디스코드 대화는 답까지 20초 안팎 걸리므로 **테스트하는 동안 `demo.overrides`의 R1 `graceSeconds`를 120으로 늘린다** (끝나면 30으로 되돌리고 guardian 재시작).
+
+| 판 | 시나리오 | 할 일 |
+| --- | --- | --- |
+| 1판 | M → K-1 대화 → L | R1 배너가 뜨면 "지금 상태 어때?" → "지금 닫아 줘" → 한 번 더 "지금 닫아 줘" → 쇼츠를 바로 다시 열어 다시 경고 배너에서 **지금 닫기** |
+| (3분 쉼) | | |
+| 2판 | N → K-1 마감 | R1 배너가 뜨면 "10분만 멈춰 줘" → 팝업 확인 → "다시 켜 줘" → 다음 분에 다시 걸린 R1을 끝까지 |
+| 3판 | K-2 | R2 강제 실행 → 끝까지 |
+| 4판 | O | 게이트웨이를 끄고 R1을 끝까지 → 다시 켜기 |
+
+### K-1. R1이 OpenClaw를 거쳐 실행되는지
+
+- **목적**: R1의 두 실행 경로가 모두 바른생활지킴이 도구(`close_entertainment_tabs`)로 가는지
+  - 마감: guardian → OpenClaw Gateway(`/tools/invoke`) → 도구 (LLM 없음)
+  - 대화: 디스코드 → OpenClaw 에이전트(LLM) → 도구
+- **절차**
+  1. (마감) A처럼 R1을 걸고 카운트다운이 끝날 때까지 쇼츠에 머문다
+  2. (대화) R1 배너가 떠 있을 때 디스코드에 "지금 닫아 줘"
+  3. (대화) 진행 중인 개입이 없을 때 한 번 더 "지금 닫아 줘"
 - **기대 결과**
-  - 오락 탭이 닫히고, 개입 기록이 `executed_by = gateway`
-  - 디스코드 알림은 지금처럼 온다 (도구 호출 없음)
-- **확인할 로그**: `#N R1 executed by gateway`
+  - 1: 오락 탭이 닫히고 `executed_by = gateway`. 디스코드 알림은 지금처럼 온다 (알림 때 도구 호출 없음)
+  - 2: 유예를 기다리지 않고 오락 탭이 닫히고 `executed_by = agent`
+  - 3: 진행 중인 개입이 없다고 답하고 아무것도 닫지 않는다
+- **확인할 로그**: 1 `#N R1 executed by gateway` / 2 `#N R1 run requested by agent` → `#N R1 executed by agent`
+- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
+
+### K-2. R2가 OpenClaw를 거쳐 실행되는지
+
+- **목적**: R2의 마감 실행이 OpenClaw Gateway를 거쳐 바른생활지킴이 도구(`start_focus_mode`)로 가는지. 대화로 부르는 경로는 K-1과 같은 코드라 K-1로 확인한다
+- **사전 조건**: 저장하지 않은 작업은 저장해 둘 것 (창이 전부 최소화됨)
+- **절차**: 쇼츠를 앞에 두고 R2 강제 실행 (F의 명령) → 카운트다운(30초)이 끝날 때까지 쇼츠에 머문다
+- **기대 결과**: 생산 모드(오락 탭 정리, 창 최소화, 생산 사이트 열기)가 실행되고 `executed_by = gateway`
+- **확인할 로그**: `#N R2 executed by gateway`
 - **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
 
 ### L. 배너 "지금 닫기"도 OpenClaw를 거치는지
 
 - **목적**: 배너 버튼으로 실행해도 같은 경로(Gateway → 도구)로 가는지
-- **절차**: A처럼 R1을 걸고 배너의 **지금 닫기** 클릭
+- **절차**: R1 배너(또는 다시 경고 배너)의 **지금 닫기** 클릭
 - **기대 결과**: 바로 오락 탭이 닫히고 `executed_by = gateway`
 - **확인할 로그**: `#N close-now requested from banner` → `#N R1 executed by gateway`
 - **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
@@ -330,7 +357,7 @@ node -e "const D=require('better-sqlite3');const db=new D('data/pattern-bridge.s
 ### M. 디스코드 대화로 상태 확인
 
 - **목적**: 에이전트가 사용자의 말을 이해해 지킴이 도구를 고르는지
-- **절차**: 디스코드에서 `/new` → "지금 상태 어때?" → (R1 유예 중에) 한 번 더 "지금 상태 어때?"
+- **절차**: 디스코드에서 `/new` → "지금 상태 어때?" (진행 중인 개입이 없을 때, R1 유예 중일 때 각각)
 - **기대 결과**
   - 진행 중인 개입이 없으면 없다고, R1 유예 중이면 남은 시간을 말한다
   - 일시 정지 여부도 말한다
@@ -349,23 +376,11 @@ node -e "const D=require('better-sqlite3');const db=new D('data/pattern-bridge.s
 - **기대 결과**
   - 진행 중이던 R1이 취소되고 배너가 사라진다 (`cancelled: guardian_paused`)
   - 팝업에 "일시 정지 중 (시각)", 끝나는 시각은 약 10분 뒤
-  - 다시 켜면 팝업이 "개입 동작 중"
+  - 다시 켜면 팝업이 "개입 동작 중". 정지로 취소된 R1은 쉬는 기간을 만들지 않으므로, 계속 오락 중이면 다음 분에 R1이 다시 걸린다
 - **확인할 로그**: `[pause] paused by agent until …` → `[pause] resumed by agent`
 - **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
 
-### O. 디스코드 대화로 "지금 닫아 줘"
-
-- **목적**: 사용자가 대화로 시킨 실행이 바로 되고 `agent`로 기록되는지
-- **절차**
-  1. R1 배너가 떠 있을 때 디스코드에 "지금 닫아 줘"
-  2. 진행 중인 개입이 없을 때 한 번 더 "지금 닫아 줘"
-- **기대 결과**
-  - 1: 유예를 기다리지 않고 오락 탭이 닫히고 `executed_by = agent`
-  - 2: 진행 중인 개입이 없다고 답하고 아무것도 닫지 않는다
-- **확인할 로그**: `#N R1 run requested by agent` → `#N R1 executed by agent`
-- **결과**: [ ] 통과 / [ ] 실패 — 날짜: ____ / 메모:
-
-### P. OpenClaw가 꺼져 있을 때
+### O. OpenClaw가 꺼져 있을 때
 
 - **목적**: OpenClaw 경로가 실패해도 개입이 빠지지 않는지
 - **절차**
