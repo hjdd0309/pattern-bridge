@@ -50,11 +50,12 @@
       "reopenGraceSeconds": 60
     },
     "R2": {
-      "_comment": "Checked every minute: fires when today's productive time is below deficitRatio of the usual amount by this time (interpolated within the hour) and the user is not working. After an R2 ends (focus mode ran, or the user started working during grace) it rests for cooldownMinutes.",
+      "_comment": "Checked every minute: fires when today's productive time is below deficitRatio of the usual amount by this time (interpolated within the hour) and the user is not working. After an R2 ends (focus mode ran, or the user started working during grace) it rests for cooldownMinutes; if the user is back off work meanwhile and productive time is still short, one banner-only re-warning with rewarnGraceSeconds follows (closes the 'open the editor for a few seconds' dodge).",
       "deficitRatio": 0.5,
       "enoughRatio": 0.7,
       "graceSeconds": 300,
       "cooldownMinutes": 60,
+      "rewarnGraceSeconds": 60,
       "baselineDays": 30,
       "minActiveMinutesPerDay": 30
     },
@@ -96,7 +97,7 @@
     "overrides": {
       "rules": {
         "R1": { "dayMinutes": 2, "nightMinutes": 2, "graceSeconds": 30, "reopenWindowMinutes": 3, "reopenGraceSeconds": 10 },
-        "R2": { "graceSeconds": 30, "cooldownMinutes": 5 },
+        "R2": { "graceSeconds": 30, "cooldownMinutes": 5, "rewarnGraceSeconds": 10 },
         "R3": { "thresholdMinutes": 5, "repeatMinutes": 3 }
       }
     }

@@ -55,8 +55,11 @@ export async function evaluateR1(ctx: Context, now: number): Promise<void> {
  * R2: checked every minute. If today's productive time is below deficitRatio
  * of the usual amount by this time (same day type, interpolated within the
  * hour), and the user is not working right now, start focus mode after a
- * grace period. After an R2 ends it rests for cooldownMinutes. Once today's
- * total reaches enoughRatio of the usual daily total, R2 is done for the day.
+ * grace period. After an R2 ends it rests for cooldownMinutes; coming back
+ * off work during the rest while productive time is still short gets exactly
+ * one short re-warning (banner only), so opening an editor for a few seconds
+ * to cancel it does not buy an hour. Once today's total reaches enoughRatio of
+ * the usual daily total, R2 is done for the day.
  *
  * Demo aid (npm run guardian:trigger -- R2 [--force]): the next minute logs
  * why R2 did or did not fire; with --force it fires regardless of productive
@@ -76,8 +79,6 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   if (isExercise(cfg, ctx.current?.category)) return skip("exercising"); // never interrupt a workout
   if (!force) {
     if (getState<number>("r2DoneDay") === ctx.dayStart) return skip("enough productive time today");
-    const last = latestEndedR2();
-    if (last && now - last.endedAt < r2.cooldownMinutes * MINUTE_MS) return skip("cooldown after the last R2");
     const grp = ctx.current?.grp;
     if (!grp || grp === "productive" || grp === "idle") return skip(`now ${grp ?? "unknown"}`);
   }
@@ -93,6 +94,19 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
   const threshold = r2.deficitRatio * target;
   if (!force && ctx.today.productive >= threshold) return skip(`productive ${ctx.today.productive}m ≥ ${threshold}m`);
 
+  // Rest after the last R2 (focus mode ran, or the user started working during
+  // grace). Still short on productive time and back off work: one re-warning.
+  let rewarn: { previous: number; previousEnd: string } | null = null;
+  if (!force) {
+    const last = latestEndedR2();
+    if (last && now - last.endedAt < r2.cooldownMinutes * MINUTE_MS) {
+      // The minute that contains the end still shows what came before it.
+      if ((ctx.current?.minuteStart ?? 0) < last.endedAt) return skip("minute containing the last R2's end");
+      if (hasRewarning(last.it.id)) return skip("cooldown after the last R2 (re-warning already given)");
+      rewarn = { previous: last.it.id, previousEnd: last.it.status === "executed" ? "executed" : "user_started_productive" };
+    }
+  }
+
   for (const it of activeInterventions()) if (it.rule === "R1") await cancel(it, "superseded_by_R2");
   const at = new Date(ctx.at);
   const it = await startIntervention(
@@ -100,13 +114,14 @@ export async function evaluateR2(ctx: Context, now: number): Promise<void> {
     {
       hour: at.getHours(), minute: at.getMinutes(), target, threshold, productive: ctx.today.productive,
       dayType: dayTypeOf(ctx.dayStart), baselineDays: set.days, ...(force ? { forced: true } : {}),
+      ...(rewarn ? { rewarn: true, ...rewarn } : {}),
       // Decided now and kept in the plan: the agent only ever sees the intervention ID.
       workspace: computeWorkspace(getDb(), cfg, USER_ID, now),
     },
-    r2.graceSeconds * 1000,
+    (rewarn ? r2.rewarnGraceSeconds : r2.graceSeconds) * 1000,
     now,
   );
-  notify(it, now);
+  if (!rewarn) notify(it, now); // a re-warning is banner only: the first R2 already sent a message
 }
 
 type R3State = { dayStart: number; lastSentAt: number; count: number };

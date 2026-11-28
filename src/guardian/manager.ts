@@ -190,6 +190,7 @@ async function doStep(now: number): Promise<void> {
       }
     }
     if (it.rule === "R2" && grp === "productive") {
+      updatePlan(it.id, { cancelledAt: now }); // R2's rest (and its re-warning) counts from here
       await cancel(it, "user_started_productive");
       continue;
     }

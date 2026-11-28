@@ -41,7 +41,11 @@ function isEntertainment(tab: link.Tab): boolean {
 }
 
 function bannerText(it: Intervention): string {
-  if (it.rule === "R2") return "오늘 공부·작업 시간이 평소보다 부족해요. 잠시 후 생산 모드를 켤게요.";
+  if (it.rule === "R2") {
+    return it.plan["rewarn"]
+      ? "아직 오늘 공부·작업 시간이 부족해요. 곧 생산 모드를 켤게요."
+      : "오늘 공부·작업 시간이 평소보다 부족해요. 잠시 후 생산 모드를 켤게요.";
+  }
   if (it.plan["rewarn"]) {
     return it.plan["previousEnd"] === "executed"
       ? "방금 정리한 오락 콘텐츠를 다시 열었어요. 곧 다시 정리할게요."

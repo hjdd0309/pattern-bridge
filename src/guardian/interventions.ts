@@ -111,7 +111,7 @@ export function latestEndedR2(): { it: Intervention; endedAt: number } | null {
   const r = getDb()
     .prepare(`
       SELECT * FROM interventions
-      WHERE rule = 'R2'
+      WHERE rule = 'R2' AND json_extract(plan, '$.rewarn') IS NULL
         AND (status = 'executed'
              OR (status = 'cancelled' AND cancel_reason IN ('user_started_productive', 'execution_failed')))
       ORDER BY decided_at DESC LIMIT 1
@@ -119,7 +119,8 @@ export function latestEndedR2(): { it: Intervention; endedAt: number } | null {
     .get() as Row | undefined;
   if (!r) return null;
   const it = toIntervention(r);
-  return { it, endedAt: it.executedAt ?? it.graceUntil ?? it.decidedAt };
+  const cancelledAt = typeof it.plan["cancelledAt"] === "number" ? it.plan["cancelledAt"] : null;
+  return { it, endedAt: it.executedAt ?? cancelledAt ?? it.graceUntil ?? it.decidedAt };
 }
 
 /**
@@ -143,10 +144,10 @@ export function latestEndedR1(): { it: Intervention; endedAt: number } | null {
   return { it, endedAt };
 }
 
-/** True when a re-warning was already given for this R1. */
+/** True when a re-warning was already given for this R1 or R2. */
 export function hasRewarning(previousId: number): boolean {
   return !!getDb()
-    .prepare("SELECT 1 FROM interventions WHERE rule = 'R1' AND json_extract(plan, '$.previous') = ? LIMIT 1")
+    .prepare("SELECT 1 FROM interventions WHERE json_extract(plan, '$.rewarn') = 1 AND json_extract(plan, '$.previous') = ? LIMIT 1")
     .get(previousId);
 }
 
