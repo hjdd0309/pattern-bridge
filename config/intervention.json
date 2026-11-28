@@ -54,7 +54,7 @@
       "deficitRatio": 0.5,
       "enoughRatio": 0.7,
       "graceSeconds": 300,
-      "cooldownMinutes": 60,
+      "cooldownMinutes": 45,
       "rewarnGraceSeconds": 60,
       "baselineDays": 30,
       "minActiveMinutesPerDay": 30

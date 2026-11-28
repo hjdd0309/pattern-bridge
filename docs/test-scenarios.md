@@ -98,7 +98,7 @@ npm run guardian:dev
 | R1 유예 | 5분 | 30초 |
 | R1 끝난 뒤 쉬는 기간 / 다시 경고 유예 | 10분 / 1분 | 3분 / 10초 |
 | R2 유예 | 5분 | 30초 |
-| R2 확인 / 끝난 뒤 쉬는 기간 | 매분 / 60분 | 매분 / 5분 (`guardian:trigger`로 바로 실행 가능) |
+| R2 확인 / 끝난 뒤 쉬는 기간 / 다시 경고 유예 | 매분 / 45분 / 1분 | 매분 / 5분 / 10초 (`guardian:trigger`로 바로 실행 가능) |
 | R3 소비 과다 (기준 / 반복) | 2시간 / 30분 | 5분 / 3분 |
 
 값은 `config/intervention.json`의 `demo.overrides`에 있다.
